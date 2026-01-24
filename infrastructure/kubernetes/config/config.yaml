@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: delices-afro-caraibe
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: delices-afro-caraibe
+data:
+  url: "redis://redis-service:6379"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: database-secrets
+  namespace: delices-afro-caraibe
+type: Opaque
+stringData:
+  url: "postgresql://delices_user:delices_password@postgres-service:5432/delices_db"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jwt-secrets
+  namespace: delices-afro-caraibe
+type: Opaque
+stringData:
+  secret: "your_jwt_secret_key_change_in_production"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stripe-secrets
+  namespace: delices-afro-caraibe
+type: Opaque
+stringData:
+  secret_key: "sk_test_your_stripe_secret_key"
+  publishable_key: "pk_test_your_stripe_publishable_key"
+  webhook_secret: "whsec_your_webhook_secret"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudinary-secrets
+  namespace: delices-afro-caraibe
+type: Opaque
+stringData:
+  cloud_name: "your_cloudinary_cloud_name"
+  api_key: "your_cloudinary_api_key"
+  api_secret: "your_cloudinary_api_secret"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: twilio-secrets
+  namespace: delices-afro-caraibe
+type: Opaque
+stringData:
+  account_sid: "your_twilio_account_sid"
+  auth_token: "your_twilio_auth_token"
+  phone_number: "+1234567890"
+  verify_service_sid: "your_verify_service_sid"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: google-maps-secrets
+  namespace: delices-afro-caraibe
+type: Opaque
+stringData:
+  api_key: "your_google_maps_api_key"

@@ -1,0 +1,96 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: delices-ingress
+  namespace: delices-afro-caraibe
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - api.delices-afro-caraibe.com
+    secretName: delices-tls-secret
+  rules:
+  - host: api.delices-afro-caraibe.com
+    http:
+      paths:
+      - path: /api/auth
+        pathType: Prefix
+        backend:
+          service:
+            name: auth-service
+            port:
+              number: 3001
+      - path: /api/users
+        pathType: Prefix
+        backend:
+          service:
+            name: user-service
+            port:
+              number: 3002
+      - path: /api/restaurants
+        pathType: Prefix
+        backend:
+          service:
+            name: restaurant-service
+            port:
+              number: 3003
+      - path: /api/orders
+        pathType: Prefix
+        backend:
+          service:
+            name: order-service
+            port:
+              number: 3004
+      - path: /api/deliveries
+        pathType: Prefix
+        backend:
+          service:
+            name: delivery-service
+            port:
+              number: 3005
+      - path: /api/payments
+        pathType: Prefix
+        backend:
+          service:
+            name: payment-service
+            port:
+              number: 3006
+      - path: /api/geolocation
+        pathType: Prefix
+        backend:
+          service:
+            name: geolocation-service
+            port:
+              number: 3008
+      - path: /api/chat
+        pathType: Prefix
+        backend:
+          service:
+            name: chat-service
+            port:
+              number: 3009
+      - path: /api/upload
+        pathType: Prefix
+        backend:
+          service:
+            name: upload-service
+            port:
+              number: 3010
+      - path: /api/stripe
+        pathType: Prefix
+        backend:
+          service:
+            name: stripe-payment-service
+            port:
+              number: 3011
+      - path: /api/sms
+        pathType: Prefix
+        backend:
+          service:
+            name: sms-service
+            port:
+              number: 3012
