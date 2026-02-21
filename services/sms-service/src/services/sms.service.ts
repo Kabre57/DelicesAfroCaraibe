@@ -68,7 +68,9 @@ export class SMSService {
         throw new Error('Invalid template name')
       }
 
-      const message = templates[template as keyof SMSTemplate](...data)
+      // Cast la fonction pour accepter un spread générique sans erreur TS
+      const tpl = templates[template as keyof SMSTemplate] as (...args: any[]) => string
+      const message = tpl(...data)
 
       const result = await this.client.messages.create({
         body: message,

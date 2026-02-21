@@ -22,6 +22,7 @@ interface CartState {
   clearCart: () => void
   getTotal: () => number
   getItemCount: () => number
+  getRestaurantId: () => string | null
 }
 
 export const useCartStore = create<CartState>()(
@@ -78,6 +79,10 @@ export const useCartStore = create<CartState>()(
       
       getItemCount: () => {
         return get().items.reduce((count, item) => count + item.quantity, 0)
+      },
+      getRestaurantId: () => {
+        const first = get().items[0]
+        return first ? first.restaurantId : null
       },
     }),
     {

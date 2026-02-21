@@ -1,13 +1,17 @@
-FROM node:18-alpine
+FROM node:18-bullseye-slim
 
 WORKDIR /app
 
-COPY package*.json ./
-
+COPY services/payment-service/package*.json ./services/payment-service/
+WORKDIR /app/services/payment-service
 RUN npm install
 
-COPY . .
+WORKDIR /app
+COPY shared/prisma ./shared/prisma
+COPY services/payment-service ./services/payment-service
 
+WORKDIR /app/services/payment-service
+RUN npx prisma generate --schema=/app/shared/prisma/schema.prisma
 RUN npm run build
 
 EXPOSE 3006

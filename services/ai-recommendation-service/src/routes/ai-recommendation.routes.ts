@@ -1,8 +1,11 @@
 import { Router } from 'express'
 import { AIRecommendationController } from '../controllers/ai-recommendation.controller'
+import { authenticate } from '../middlewares/auth.middleware'
 
 const router = Router()
 const controller = new AIRecommendationController()
+
+router.use(authenticate)
 
 router.post('/recommendations/restaurants', controller.getRestaurantRecommendations.bind(controller))
 router.post('/recommendations/dishes', controller.getDishRecommendations.bind(controller))

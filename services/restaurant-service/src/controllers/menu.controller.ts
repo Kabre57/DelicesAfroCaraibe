@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import prisma from '../prisma'
+import { AuthenticatedRequest } from '../middlewares/auth.middleware'
 
 export const getMenuItemsByRestaurant = async (req: Request, res: Response) => {
   try {
@@ -46,9 +47,22 @@ export const getMenuItemById = async (req: Request, res: Response) => {
   }
 }
 
-export const createMenuItem = async (req: Request, res: Response) => {
+export const createMenuItem = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { restaurantId, name, description, price, category, imageUrl, isAvailable } = req.body
+
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' })
+    if (req.user.role !== 'ADMIN') {
+      const restaurant = await prisma.restaurant.findUnique({
+        where: { id: restaurantId },
+        include: { restaurateur: true },
+      })
+      if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' })
+      const owner = await prisma.restaurateur.findUnique({ where: { id: restaurant.restaurateurId } })
+      if (!owner || owner.userId !== req.user.userId) {
+        return res.status(403).json({ error: 'Forbidden' })
+      }
+    }
 
     const menuItem = await prisma.menuItem.create({
       data: {
@@ -69,10 +83,25 @@ export const createMenuItem = async (req: Request, res: Response) => {
   }
 }
 
-export const updateMenuItem = async (req: Request, res: Response) => {
+export const updateMenuItem = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params
     const updateData = req.body
+
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' })
+    if (req.user.role !== 'ADMIN') {
+      const menuItem = await prisma.menuItem.findUnique({
+        where: { id },
+        include: { restaurant: { include: { restaurateur: true } } },
+      })
+      if (!menuItem) return res.status(404).json({ error: 'Menu item not found' })
+      const owner = await prisma.restaurateur.findUnique({
+        where: { id: menuItem.restaurant.restaurateurId },
+      })
+      if (!owner || owner.userId !== req.user.userId) {
+        return res.status(403).json({ error: 'Forbidden' })
+      }
+    }
 
     const menuItem = await prisma.menuItem.update({
       where: { id },
@@ -86,9 +115,24 @@ export const updateMenuItem = async (req: Request, res: Response) => {
   }
 }
 
-export const deleteMenuItem = async (req: Request, res: Response) => {
+export const deleteMenuItem = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params
+
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' })
+    if (req.user.role !== 'ADMIN') {
+      const menuItem = await prisma.menuItem.findUnique({
+        where: { id },
+        include: { restaurant: { include: { restaurateur: true } } },
+      })
+      if (!menuItem) return res.status(404).json({ error: 'Menu item not found' })
+      const owner = await prisma.restaurateur.findUnique({
+        where: { id: menuItem.restaurant.restaurateurId },
+      })
+      if (!owner || owner.userId !== req.user.userId) {
+        return res.status(403).json({ error: 'Forbidden' })
+      }
+    }
 
     await prisma.menuItem.delete({
       where: { id },

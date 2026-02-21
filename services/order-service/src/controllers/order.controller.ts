@@ -1,10 +1,10 @@
 import { Request, Response } from 'express'
 import prisma from '../prisma'
+import { AuthenticatedRequest } from '../middlewares/auth.middleware'
 
-export const createOrder = async (req: Request, res: Response) => {
+export const createOrder = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const {
-      clientId,
       restaurantId,
       items,
       deliveryAddress,
@@ -13,19 +13,37 @@ export const createOrder = async (req: Request, res: Response) => {
       notes,
     } = req.body
 
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' })
+
+    // clientId from token
+    const client = await prisma.client.findUnique({ where: { userId: req.user.userId } })
+    if (!client) return res.status(400).json({ error: 'Client profile not found' })
+
+    const menuItems = await prisma.menuItem.findMany({
+      where: { id: { in: items.map((item: any) => item.menuItemId) } },
+    })
+    const menuItemsById = new Map(menuItems.map((menuItem) => [menuItem.id, menuItem]))
+
     let totalAmount = 0
-    for (const item of items) {
-      const menuItem = await prisma.menuItem.findUnique({
-        where: { id: item.menuItemId },
-      })
-      if (menuItem) {
-        totalAmount += menuItem.price * item.quantity
+    const normalizedItems = items.map((item: any) => {
+      const menuItem = menuItemsById.get(item.menuItemId)
+      if (!menuItem) {
+        throw new Error(`Menu item not found: ${item.menuItemId}`)
       }
-    }
+
+      const price = menuItem.price
+      totalAmount += price * item.quantity
+
+      return {
+        menuItemId: item.menuItemId,
+        quantity: item.quantity,
+        price,
+      }
+    })
 
     const order = await prisma.order.create({
       data: {
-        clientId,
+        clientId: client.id,
         restaurantId,
         totalAmount,
         deliveryAddress,
@@ -34,11 +52,7 @@ export const createOrder = async (req: Request, res: Response) => {
         notes,
         status: 'PENDING',
         orderItems: {
-          create: items.map((item: any) => ({
-            menuItemId: item.menuItemId,
-            quantity: item.quantity,
-            price: item.price,
-          })),
+          create: normalizedItems,
         },
       },
       include: {
@@ -187,7 +201,7 @@ export const getOrderById = async (req: Request, res: Response) => {
   }
 }
 
-export const updateOrderStatus = async (req: Request, res: Response) => {
+export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params
     const { status } = req.body
@@ -213,7 +227,31 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
   }
 }
 
-export const cancelOrder = async (req: Request, res: Response) => {
+export const getMyOrders = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' })
+    const client = await prisma.client.findUnique({ where: { userId: req.user.userId } })
+    if (!client) return res.status(400).json({ error: 'Client profile not found' })
+
+    const orders = await prisma.order.findMany({
+      where: { clientId: client.id },
+      include: {
+        orderItems: { include: { menuItem: true } },
+        restaurant: true,
+        payment: true,
+        delivery: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    res.json(orders)
+  } catch (error) {
+    console.error('Get my orders error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const cancelOrder = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params
 

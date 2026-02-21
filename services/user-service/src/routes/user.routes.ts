@@ -6,8 +6,11 @@ import {
   updateLivreurProfile,
   getRestaurateurProfile,
 } from '../controllers/user.controller'
+import { authenticate } from '../middlewares/auth.middleware'
 
 const router = Router()
+
+router.use(authenticate)
 
 router.get('/:id', getUserById)
 router.put('/:id', updateUser)

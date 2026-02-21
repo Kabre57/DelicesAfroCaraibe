@@ -3,8 +3,15 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import prisma from '../prisma'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 const JWT_EXPIRES_IN = '7d'
+
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET is not configured')
+  }
+  return secret
+}
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -38,16 +45,36 @@ export const register = async (req: Request, res: Response) => {
         },
       })
     } else if (role === 'RESTAURATEUR') {
-      await prisma.restaurateur.create({
+      const restaurateur = await prisma.restaurateur.create({
         data: {
           userId: user.id,
         },
       })
+
+      // Si les infos restaurant sont fournies à l'inscription, on crée le restaurant immédiatement
+      if (additionalData?.restaurant) {
+        const r = additionalData.restaurant
+        await prisma.restaurant.create({
+          data: {
+            restaurateurId: restaurateur.id,
+            name: r.name || 'Restaurant sans nom',
+            description: r.description || null,
+            address: r.address || '',
+            city: r.city || '',
+            postalCode: r.postalCode || '',
+            phone: r.phone || phone || '',
+            cuisineType: r.cuisineType || 'Cuisine',
+            openingHours: r.openingHours || { monday: '09:00-18:00' },
+            imageUrl: r.imageUrl || null,
+          },
+        })
+      }
     } else if (role === 'LIVREUR') {
       await prisma.livreur.create({
         data: {
           userId: user.id,
-          vehicleType: additionalData?.vehicleType || '',
+          vehicleType: additionalData?.vehicleType || 'scooter',
+          licensePlate: additionalData?.licensePlate || null,
           coverageZones: additionalData?.coverageZones || [],
         },
       })
@@ -55,7 +82,7 @@ export const register = async (req: Request, res: Response) => {
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: JWT_EXPIRES_IN }
     )
 
@@ -92,7 +119,7 @@ export const login = async (req: Request, res: Response) => {
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: JWT_EXPIRES_IN }
     )
 
@@ -121,7 +148,7 @@ export const verifyToken = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'No token provided' })
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any
+    const decoded = jwt.verify(token, getJwtSecret()) as any
 
     const user = await prisma.user.findUnique({ where: { id: decoded.userId } })
     if (!user) {

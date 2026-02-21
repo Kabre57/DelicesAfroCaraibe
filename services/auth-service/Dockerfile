@@ -1,15 +1,17 @@
-FROM node:18-alpine
+FROM node:18-bullseye-slim
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY ../../shared/prisma ./prisma
-
+COPY services/auth-service/package*.json ./services/auth-service/
+WORKDIR /app/services/auth-service
 RUN npm install
 
-RUN npx prisma generate --schema=../../shared/prisma/schema.prisma
+WORKDIR /app
+COPY shared/prisma ./shared/prisma
+COPY services/auth-service ./services/auth-service
 
-COPY . .
+WORKDIR /app/services/auth-service
+RUN npx prisma generate --schema=/app/shared/prisma/schema.prisma
 
 RUN npm run build
 

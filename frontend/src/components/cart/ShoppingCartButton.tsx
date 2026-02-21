@@ -2,12 +2,14 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShoppingCart, Trash2, Plus, Minus, X } from 'lucide-react'
+import { ShoppingCart, Trash2, Plus, Minus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { useCartStore } from '@/lib/cart-store'
+import { orderAPI } from '@/lib/api'
 import {
   Sheet,
   SheetContent,
@@ -16,12 +18,65 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { useRouter } from 'next/navigation'
 
 export function ShoppingCartButton() {
   const [open, setOpen] = useState(false)
-  const { items, updateQuantity, removeItem, getTotal, getItemCount, clearCart } = useCartStore()
+  const router = useRouter()
+  const {
+    items,
+    updateQuantity,
+    removeItem,
+    getTotal,
+    getItemCount,
+    clearCart,
+    getRestaurantId,
+  } = useCartStore()
   const itemCount = getItemCount()
   const total = getTotal()
+  const [address, setAddress] = useState('')
+  const [city, setCity] = useState('')
+  const [postalCode, setPostalCode] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleCheckout = async () => {
+    setError('')
+    if (!address || !city || !postalCode) {
+      setError('Adresse de livraison requise')
+      return
+    }
+    if (items.length === 0) return
+    const restaurantId = getRestaurantId()
+    const sameRestaurant = items.every((i) => i.restaurantId === restaurantId)
+    if (!sameRestaurant) {
+      setError('Panier limité à un seul restaurant par commande.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const payload = {
+        restaurantId,
+        deliveryAddress: address,
+        deliveryCity: city,
+        deliveryPostalCode: postalCode,
+        items: items.map((i) => ({
+          menuItemId: i.menuItemId,
+          quantity: i.quantity,
+        })),
+      }
+      await orderAPI.post('/orders', payload)
+      clearCart()
+      setOpen(false)
+      router.push('/client/orders')
+    } catch (e: any) {
+      console.error(e)
+      setError(e?.response?.data?.error || 'Erreur lors de la commande')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -41,12 +96,10 @@ export function ShoppingCartButton() {
       <SheetContent className="w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>Panier ({itemCount} articles)</SheetTitle>
-          <SheetDescription>
-            Vérifiez vos articles avant de commander
-          </SheetDescription>
+          <SheetDescription>Vérifiez vos articles avant de commander</SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full space-y-3">
           {items.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
@@ -56,6 +109,10 @@ export function ShoppingCartButton() {
             </div>
           ) : (
             <>
+              {error && (
+                <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>
+              )}
+
               <div className="flex-1 overflow-auto py-4">
                 <AnimatePresence mode="popLayout">
                   {items.map((item) => (
@@ -82,9 +139,7 @@ export function ShoppingCartButton() {
                             <div className="flex justify-between items-start mb-2">
                               <div>
                                 <h4 className="font-medium truncate">{item.name}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  {item.restaurantName}
-                                </p>
+                                <p className="text-sm text-muted-foreground">{item.restaurantName}</p>
                               </div>
                               <Button
                                 variant="ghost"
@@ -126,20 +181,32 @@ export function ShoppingCartButton() {
               </div>
 
               <div className="border-t pt-4 space-y-4">
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Adresse de livraison"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input placeholder="Ville" value={city} onChange={(e) => setCity(e.target.value)} />
+                    <Input
+                      placeholder="Code postal"
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value)}
+                    />
+                  </div>
+                </div>
+
                 <div className="flex justify-between items-center text-lg font-semibold">
                   <span>Total</span>
                   <span>{total.toFixed(2)} €</span>
                 </div>
                 <Separator />
                 <div className="space-y-2">
-                  <Button className="w-full" size="lg">
-                    Commander
+                  <Button className="w-full" size="lg" disabled={loading} onClick={handleCheckout}>
+                    {loading ? 'Commande en cours...' : 'Commander'}
                   </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={clearCart}
-                  >
+                  <Button variant="outline" className="w-full" onClick={clearCart}>
                     Vider le panier
                   </Button>
                 </div>

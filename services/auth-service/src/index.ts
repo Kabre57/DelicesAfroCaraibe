@@ -5,6 +5,10 @@ import authRoutes from './routes/auth.routes'
 
 dotenv.config()
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET is required')
+}
+
 const app = express()
 const PORT = process.env.PORT || 3001
 

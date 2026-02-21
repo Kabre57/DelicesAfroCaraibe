@@ -1,8 +1,11 @@
 import { Router } from 'express'
 import { ChatController } from '../controllers/chat.controller'
+import { authenticate } from '../middlewares/auth.middleware'
 
 const router = Router()
 const controller = new ChatController()
+
+router.use(authenticate)
 
 router.get('/chat/:orderId/history', controller.getChatHistory.bind(controller))
 router.delete('/chat/:orderId', controller.deleteChatHistory.bind(controller))

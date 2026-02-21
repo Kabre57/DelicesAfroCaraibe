@@ -2,6 +2,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import path from 'path'
 import { UploadController } from '../controllers/upload.controller'
+import { authenticate } from '../middlewares/auth.middleware'
 
 const router = Router()
 const controller = new UploadController()
@@ -31,6 +32,8 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB
   },
 })
+
+router.use(authenticate)
 
 router.post('/upload/single', upload.single('image'), controller.uploadSingle.bind(controller))
 router.post('/upload/multiple', upload.array('images', 10), controller.uploadMultiple.bind(controller))

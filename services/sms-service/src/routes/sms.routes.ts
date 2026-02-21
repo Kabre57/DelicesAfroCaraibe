@@ -1,8 +1,11 @@
 import { Router } from 'express'
 import { SMSController } from '../controllers/sms.controller'
+import { authenticate } from '../middlewares/auth.middleware'
 
 const router = Router()
 const controller = new SMSController()
+
+router.use(authenticate)
 
 router.post('/sms/send', controller.sendSMS.bind(controller))
 router.post('/sms/send-template', controller.sendTemplate.bind(controller))

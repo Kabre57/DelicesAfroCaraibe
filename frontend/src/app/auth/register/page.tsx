@@ -22,6 +22,19 @@ export default function RegisterPage() {
     address: '',
     city: '',
     postalCode: '',
+    // Restaurateur
+    restaurantName: '',
+    restaurantDescription: '',
+    restaurantAddress: '',
+    restaurantCity: '',
+    restaurantPostalCode: '',
+    restaurantPhone: '',
+    cuisineType: '',
+    openingHours: '',
+    // Livreur
+    vehicleType: '',
+    licensePlate: '',
+    coverageZones: '',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -38,6 +51,30 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
+      const additionalData: any = {}
+      if (formData.role === 'CLIENT') {
+        additionalData.address = formData.address
+        additionalData.city = formData.city
+        additionalData.postalCode = formData.postalCode
+      } else if (formData.role === 'RESTAURATEUR') {
+        additionalData.restaurant = {
+          name: formData.restaurantName,
+          description: formData.restaurantDescription,
+          address: formData.restaurantAddress,
+          city: formData.restaurantCity,
+          postalCode: formData.restaurantPostalCode,
+          phone: formData.restaurantPhone || formData.phone,
+          cuisineType: formData.cuisineType,
+          openingHours: formData.openingHours || { monday: '09:00-18:00' },
+        }
+      } else if (formData.role === 'LIVREUR') {
+        additionalData.vehicleType = formData.vehicleType
+        additionalData.licensePlate = formData.licensePlate
+        additionalData.coverageZones = formData.coverageZones
+          ? formData.coverageZones.split(',').map(z => z.trim()).filter(Boolean)
+          : []
+      }
+
       const response = await authAPI.post('/auth/register', {
         email: formData.email,
         password: formData.password,
@@ -45,11 +82,7 @@ export default function RegisterPage() {
         lastName: formData.lastName,
         phone: formData.phone,
         role: formData.role,
-        additionalData: {
-          address: formData.address,
-          city: formData.city,
-          postalCode: formData.postalCode,
-        },
+        additionalData,
       })
 
       const { token, user } = response.data
@@ -223,6 +256,114 @@ export default function RegisterPage() {
                       required
                     />
                   </div>
+                </div>
+              </>
+            )}
+
+            {formData.role === 'RESTAURATEUR' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="restaurantName">Nom du restaurant</Label>
+                  <Input
+                    id="restaurantName"
+                    name="restaurantName"
+                    value={formData.restaurantName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="restaurantDescription">Description</Label>
+                  <Input
+                    id="restaurantDescription"
+                    name="restaurantDescription"
+                    value={formData.restaurantDescription}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cuisineType">Type de cuisine</Label>
+                  <Input
+                    id="cuisineType"
+                    name="cuisineType"
+                    value={formData.cuisineType}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="restaurantPhone">Téléphone du restaurant</Label>
+                  <Input
+                    id="restaurantPhone"
+                    name="restaurantPhone"
+                    value={formData.restaurantPhone}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="restaurantAddress">Adresse</Label>
+                  <Input
+                    id="restaurantAddress"
+                    name="restaurantAddress"
+                    value={formData.restaurantAddress}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="restaurantCity">Ville</Label>
+                    <Input
+                      id="restaurantCity"
+                      name="restaurantCity"
+                      value={formData.restaurantCity}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="restaurantPostalCode">Code postal</Label>
+                    <Input
+                      id="restaurantPostalCode"
+                      name="restaurantPostalCode"
+                      value={formData.restaurantPostalCode}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {formData.role === 'LIVREUR' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="vehicleType">Type de véhicule</Label>
+                  <Input
+                    id="vehicleType"
+                    name="vehicleType"
+                    value={formData.vehicleType}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="licensePlate">Immatriculation</Label>
+                  <Input
+                    id="licensePlate"
+                    name="licensePlate"
+                    value={formData.licensePlate}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="coverageZones">Zones couvertes (séparées par des virgules)</Label>
+                  <Input
+                    id="coverageZones"
+                    name="coverageZones"
+                    value={formData.coverageZones}
+                    onChange={handleChange}
+                  />
                 </div>
               </>
             )}
