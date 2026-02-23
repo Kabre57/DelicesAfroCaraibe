@@ -92,6 +92,9 @@ export const createRestaurant = async (req: AuthenticatedRequest, res: Response)
     if (!restaurateur) {
       return res.status(403).json({ error: 'Only restaurateurs can create restaurants' })
     }
+    if (!restaurateur.isApproved) {
+      return res.status(403).json({ error: 'Compte restaurateur en attente de validation admin' })
+    }
 
     const restaurant = await prisma.restaurant.create({
       data: {

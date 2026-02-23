@@ -96,6 +96,8 @@ export interface Order {
   updatedAt: string
   orderItems?: OrderItem[]
   restaurant?: Restaurant
+  payment?: Payment
+  delivery?: Delivery
 }
 
 export interface OrderItem {

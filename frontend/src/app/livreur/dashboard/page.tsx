@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { getDeliverySocket } from '@/lib/socket'
 
 export default function LivreurDashboardPage() {
   const [available, setAvailable] = useState<Delivery[]>([])
@@ -29,6 +30,11 @@ export default function LivreurDashboardPage() {
 
   useEffect(() => {
     refresh()
+    const socket = getDeliverySocket()
+    socket.on('delivery:update', () => refresh())
+    return () => {
+      socket.off('delivery:update')
+    }
   }, [])
 
   const accept = async (id: string) => {
@@ -61,6 +67,16 @@ export default function LivreurDashboardPage() {
                 <CardContent className="space-y-1 text-sm text-muted-foreground">
                   <p>Pickup : {d.pickupAddress}</p>
                   <p>Livraison : {d.deliveryAddress}</p>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+                      d.pickupAddress
+                    )}&destination=${encodeURIComponent(d.deliveryAddress)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline"
+                  >
+                    Voir l'itinéraire
+                  </a>
                   <Separator className="my-2" />
                   <Button onClick={() => accept(d.id)}>Accepter</Button>
                 </CardContent>

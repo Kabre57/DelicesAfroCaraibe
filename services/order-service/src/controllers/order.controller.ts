@@ -1,6 +1,41 @@
 import { Request, Response } from 'express'
 import prisma from '../prisma'
 import { AuthenticatedRequest } from '../middlewares/auth.middleware'
+import { Server } from 'socket.io'
+
+const NOTIF_URL =
+  process.env.NOTIFICATION_SERVICE_URL || 'http://notification-service:3007/api/notifications/send'
+const SMS_URL = process.env.SMS_SERVICE_URL || 'http://sms-service:3012/sms/send'
+
+async function sendNotification(payload: {
+  userId: string
+  title: string
+  message: string
+  email?: string
+}) {
+  try {
+    await fetch(NOTIF_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (e) {
+    console.error('Notification error', e)
+  }
+}
+
+async function sendSMS(to: string | undefined, message: string) {
+  if (!to) return
+  try {
+    await fetch(SMS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, message }),
+    })
+  } catch (e) {
+    console.error('SMS error', e)
+  }
+}
 
 export const createOrder = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -82,6 +117,30 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response) => {
         deliveryAddress: `${deliveryAddress}, ${deliveryCity}`,
       },
     })
+
+    // notify client and restaurateur
+    const clientUser = await prisma.user.findUnique({ where: { id: req.user.userId } })
+    const resto = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      include: { restaurateur: { include: { user: true } } },
+    })
+    await sendNotification({
+      userId: req.user.userId,
+      title: 'Commande passée',
+      message: `Votre commande ${order.id.slice(0, 8)} est en attente de confirmation.`,
+      email: clientUser?.email,
+    })
+    await sendNotification({
+      userId: resto?.restaurateur.userId || '',
+      title: 'Nouvelle commande',
+      message: `Nouvelle commande à préparer (${order.id.slice(0, 8)}).`,
+      email: resto?.restaurateur.user?.email,
+    })
+    await sendSMS(clientUser?.phone, 'Commande reçue, en attente de confirmation.')
+    await sendSMS(resto?.restaurateur.user?.phone, 'Nouvelle commande à préparer.')
+
+    const io = req.app.get('io') as Server | undefined
+    io?.emit('order:update', { orderId: order.id, status: order.status })
 
     res.status(201).json(order)
   } catch (error) {
@@ -217,8 +276,26 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
         },
         restaurant: true,
         delivery: true,
+        client: true,
       },
     })
+
+    // notify client on status change
+    const clientProfile = await prisma.client.findUnique({
+      where: { id: order.clientId },
+      include: { user: true },
+    })
+    const clientUser = clientProfile?.user
+    await sendNotification({
+      userId: clientUser?.id || '',
+      title: 'Statut commande mis à jour',
+      message: `Commande ${order.id.slice(0, 8)} : ${status}`,
+      email: clientUser?.email,
+    })
+    await sendSMS(clientUser?.phone, `Commande ${order.id.slice(0, 8)} : ${status}`)
+
+    const io = req.app.get('io') as Server | undefined
+    io?.emit('order:update', { orderId: order.id, status })
 
     res.json(order)
   } catch (error) {

@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { useCartStore } from '@/lib/cart-store'
-import { orderAPI } from '@/lib/api'
+import { orderAPI, paymentAPI } from '@/lib/api'
 import {
   Sheet,
   SheetContent,
@@ -66,7 +66,14 @@ export function ShoppingCartButton() {
           quantity: i.quantity,
         })),
       }
-      await orderAPI.post('/orders', payload)
+      const orderRes = await orderAPI.post('/orders', payload)
+      const orderId = orderRes.data.id
+      // Paiement immédiat (simulation)
+      await paymentAPI.post('/payments/process', {
+        orderId,
+        paymentMethod: 'CARD',
+        transactionId: `TX-${Date.now()}`,
+      })
       clearCart()
       setOpen(false)
       router.push('/client/orders')

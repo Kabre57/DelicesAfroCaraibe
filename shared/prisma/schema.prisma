@@ -75,7 +75,9 @@ model Restaurateur {
   id          String   @id @default(uuid())
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  isApproved  Boolean  @default(false)
+  approvedAt  DateTime?
+
   restaurants Restaurant[]
 
   @@map("restaurateurs")
@@ -180,6 +182,8 @@ model Livreur {
   licensePlate  String?
   coverageZones String[]
   isAvailable   Boolean   @default(true)
+  isApproved    Boolean   @default(false)
+  approvedAt    DateTime?
   
   deliveries    Delivery[]
 

@@ -81,6 +81,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://delices_user:delices_password@postgres:5432/delices_db
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3007/api/notifications/send
+      - SMS_SERVICE_URL=http://sms-service:3012/sms/send
     depends_on:
       - postgres
     networks:
@@ -95,6 +97,9 @@ services:
       - "3105:3005"
     environment:
       - DATABASE_URL=postgresql://delices_user:delices_password@postgres:5432/delices_db
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3007/api/notifications/send
+      - SMS_SERVICE_URL=http://sms-service:3012/sms/send
     depends_on:
       - postgres
     networks:
@@ -110,6 +115,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://delices_user:delices_password@postgres:5432/delices_db
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3007/api/notifications/send
+      - SMS_SERVICE_URL=http://sms-service:3012/sms/send
     depends_on:
       - postgres
     networks:

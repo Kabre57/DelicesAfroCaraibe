@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import prisma from '../prisma'
 import bcrypt from 'bcryptjs'
+import { AuthenticatedRequest } from '../middlewares/auth.middleware'
 
 export const getUserById = async (req: Request, res: Response) => {
   try {
@@ -144,6 +145,69 @@ export const getRestaurateurProfile = async (req: Request, res: Response) => {
     res.json(restaurateur)
   } catch (error) {
     console.error('Get restaurateur profile error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const listPendingRestaurateurs = async (req: Request, res: Response) => {
+  try {
+    const items = await prisma.restaurateur.findMany({
+      where: { isApproved: false },
+      include: {
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true, phone: true },
+        },
+        restaurants: true,
+      },
+    })
+    res.json(items)
+  } catch (error) {
+    console.error('List pending restaurateurs error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const listPendingLivreurs = async (req: Request, res: Response) => {
+  try {
+    const items = await prisma.livreur.findMany({
+      where: { isApproved: false },
+      include: {
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true, phone: true },
+        },
+      },
+    })
+    res.json(items)
+  } catch (error) {
+    console.error('List pending livreurs error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const approveRestaurateur = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { userId } = req.params
+    const restaurateur = await prisma.restaurateur.update({
+      where: { userId },
+      data: { isApproved: true, approvedAt: new Date() },
+    })
+    res.json(restaurateur)
+  } catch (error) {
+    console.error('Approve restaurateur error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const approveLivreur = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { userId } = req.params
+    const livreur = await prisma.livreur.update({
+      where: { userId },
+      data: { isApproved: true, approvedAt: new Date() },
+    })
+    res.json(livreur)
+  } catch (error) {
+    console.error('Approve livreur error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 }

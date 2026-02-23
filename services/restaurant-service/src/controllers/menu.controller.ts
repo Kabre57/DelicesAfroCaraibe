@@ -62,6 +62,9 @@ export const createMenuItem = async (req: AuthenticatedRequest, res: Response) =
       if (!owner || owner.userId !== req.user.userId) {
         return res.status(403).json({ error: 'Forbidden' })
       }
+      if (!owner.isApproved) {
+        return res.status(403).json({ error: 'Compte restaurateur en attente de validation admin' })
+      }
     }
 
     const menuItem = await prisma.menuItem.create({
@@ -100,6 +103,9 @@ export const updateMenuItem = async (req: AuthenticatedRequest, res: Response) =
       })
       if (!owner || owner.userId !== req.user.userId) {
         return res.status(403).json({ error: 'Forbidden' })
+      }
+      if (!owner.isApproved) {
+        return res.status(403).json({ error: 'Compte restaurateur en attente de validation admin' })
       }
     }
 

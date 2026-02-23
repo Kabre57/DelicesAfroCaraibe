@@ -6,6 +6,7 @@ import { Restaurant, Order } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { getOrderSocket } from '@/lib/socket'
 
 export default function RestaurateurDashboardPage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
@@ -40,6 +41,13 @@ export default function RestaurateurDashboardPage() {
       }
     }
     fetchOrders()
+    const socket = getOrderSocket()
+    socket.on('order:update', ({ orderId, status }: any) => {
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)))
+    })
+    return () => {
+      socket.off('order:update')
+    }
   }, [selectedRestaurant])
 
   if (loading) return <div className="p-6">Chargement...</div>

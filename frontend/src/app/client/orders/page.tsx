@@ -6,6 +6,7 @@ import { Order } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { getOrderSocket } from '@/lib/socket'
 
 export default function ClientOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -25,6 +26,15 @@ export default function ClientOrdersPage() {
       }
     }
     fetchOrders()
+    const socket = getOrderSocket()
+    socket.on('order:update', ({ orderId, status }: any) => {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+      )
+    })
+    return () => {
+      socket.off('order:update')
+    }
   }, [])
 
   if (loading) return <div className="p-6">Chargement...</div>
@@ -58,17 +68,25 @@ export default function ClientOrdersPage() {
                         <span>{(item.price * item.quantity).toFixed(2)} €</span>
                       </div>
                     ))}
+                </div>
+                <Separator />
+                <div className="flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span>{order.totalAmount.toFixed(2)} €</span>
+                </div>
+                {order.payment && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span>Paiement</span>
+                    <Badge variant={order.payment.status === 'COMPLETED' ? 'default' : 'destructive'}>
+                      {order.payment.status}
+                    </Badge>
                   </div>
-                  <Separator />
-                  <div className="flex justify-between font-semibold">
-                    <span>Total</span>
-                    <span>{order.totalAmount.toFixed(2)} €</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
       </div>
     </div>
   )
