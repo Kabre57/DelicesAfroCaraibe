@@ -1,12 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { orderAPI } from '@/lib/api'
-import { Order } from '@/types'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { useEffect, useMemo, useState } from 'react'
 import { getOrderSocket } from '@/lib/socket'
+import { orderAPI } from '@/lib/api'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { Order } from '@/types'
+
+const statusStyles: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-800 border-amber-200',
+  CONFIRMED: 'bg-blue-100 text-blue-800 border-blue-200',
+  PREPARING: 'bg-violet-100 text-violet-800 border-violet-200',
+  READY: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  IN_DELIVERY: 'bg-orange-100 text-orange-800 border-orange-200',
+  DELIVERED: 'bg-green-100 text-green-800 border-green-200',
+  CANCELLED: 'bg-rose-100 text-rose-800 border-rose-200',
+}
 
 export default function ClientOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -25,54 +35,81 @@ export default function ClientOrdersPage() {
         setLoading(false)
       }
     }
+
     fetchOrders()
     const socket = getOrderSocket()
-    socket.on('order:update', ({ orderId, status }: any) => {
+    const onUpdate = ({ orderId, status }: { orderId: string; status: string }) => {
       setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+        prev.map((o) => (o.id === orderId ? { ...o, status: status as Order['status'] } : o))
       )
-    })
+    }
+    socket.on('order:update', onUpdate)
     return () => {
-      socket.off('order:update')
+      socket.off('order:update', onUpdate)
     }
   }, [])
 
+  const totalSpent = useMemo(() => orders.reduce((sum, order) => sum + order.totalAmount, 0), [orders])
+
   if (loading) return <div className="p-6">Chargement...</div>
-  if (error) return <div className="p-6 text-red-600">{error}</div>
+  if (error) return <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 space-y-4">
-        <h1 className="text-2xl font-bold">Mes commandes</h1>
-        {orders.length === 0 ? (
-          <p className="text-muted-foreground">Aucune commande pour le moment.</p>
-        ) : (
-          <div className="space-y-3">
-            {orders.map((order) => (
-              <Card key={order.id}>
-                <CardHeader className="flex flex-row items-center justify-between">
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-orange-100 bg-white/90 p-5 shadow-lg shadow-orange-100/40">
+        <h1 className="text-2xl font-black text-slate-900">Historique des commandes</h1>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-slate-200 px-4 py-3">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Total</p>
+            <p className="text-2xl font-black text-slate-900">{orders.length}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 px-4 py-3">
+            <p className="text-xs uppercase tracking-wider text-slate-500">En cours</p>
+            <p className="text-2xl font-black text-slate-900">
+              {orders.filter((o) => !['DELIVERED', 'CANCELLED'].includes(o.status)).length}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 px-4 py-3">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Depense</p>
+            <p className="text-2xl font-black text-slate-900">{totalSpent.toFixed(2)} EUR</p>
+          </div>
+        </div>
+      </section>
+
+      {orders.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-slate-600">
+          Aucune commande pour le moment.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {orders.map((order) => (
+            <Card key={order.id} className="border-slate-200/80 bg-white/90 shadow-lg shadow-slate-200/40">
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <div>
                   <CardTitle>Commande #{order.id.slice(0, 8)}</CardTitle>
-                  <Badge variant="outline">{order.status}</Badge>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="text-sm text-muted-foreground">
-                    {order.restaurant?.name} — {order.deliveryAddress}, {order.deliveryCity}
-                  </div>
-                  <Separator />
-                  <div className="space-y-1 text-sm">
-                    {order.orderItems?.map((item) => (
-                      <div key={item.id} className="flex justify-between">
-                        <span>
-                          {item.menuItem?.name} x {item.quantity}
-                        </span>
-                        <span>{(item.price * item.quantity).toFixed(2)} €</span>
-                      </div>
-                    ))}
+                  <p className="text-sm text-slate-500">
+                    {order.restaurant?.name} - {order.deliveryAddress}, {order.deliveryCity}
+                  </p>
+                </div>
+                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[order.status] ?? 'bg-slate-100 text-slate-800'}`}>
+                  {order.status}
+                </span>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="space-y-1 text-sm text-slate-600">
+                  {order.orderItems?.map((item) => (
+                    <div key={item.id} className="flex justify-between">
+                      <span>
+                        {item.menuItem?.name} x {item.quantity}
+                      </span>
+                      <span>{(item.price * item.quantity).toFixed(2)} EUR</span>
+                    </div>
+                  ))}
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold">
                   <span>Total</span>
-                  <span>{order.totalAmount.toFixed(2)} €</span>
+                  <span>{order.totalAmount.toFixed(2)} EUR</span>
                 </div>
                 {order.payment && (
                   <div className="flex justify-between items-center text-sm">
@@ -87,7 +124,6 @@ export default function ClientOrdersPage() {
           ))}
         </div>
       )}
-      </div>
     </div>
   )
 }

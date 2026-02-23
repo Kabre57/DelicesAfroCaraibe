@@ -38,6 +38,9 @@ export default function LoginPage() {
         case 'LIVREUR':
           router.push('/livreur/dashboard')
           break
+        case 'ADMIN':
+          router.push('/admin/dashboard')
+          break
         default:
           router.push('/')
       }

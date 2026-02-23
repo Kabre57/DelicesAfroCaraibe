@@ -35,7 +35,29 @@ export const paymentAPI = axios.create({
   baseURL: `${resolveServiceUrl(process.env.NEXT_PUBLIC_PAYMENT_API, 3106)}/api`,
 })
 
-const apis = [authAPI, userAPI, restaurantAPI, orderAPI, deliveryAPI, paymentAPI]
+export const notificationAPI = axios.create({
+  baseURL: `${resolveServiceUrl(process.env.NEXT_PUBLIC_NOTIFICATION_API, 3107)}/api`,
+})
+
+export const chatAPI = axios.create({
+  baseURL: `${resolveServiceUrl(process.env.NEXT_PUBLIC_CHAT_API, 3109)}/api`,
+})
+
+export const uploadAPI = axios.create({
+  baseURL: `${resolveServiceUrl(process.env.NEXT_PUBLIC_UPLOAD_API, 3110)}/api`,
+})
+
+const apis = [
+  authAPI,
+  userAPI,
+  restaurantAPI,
+  orderAPI,
+  deliveryAPI,
+  paymentAPI,
+  notificationAPI,
+  chatAPI,
+  uploadAPI,
+]
 
 apis.forEach(api => {
   api.interceptors.request.use(

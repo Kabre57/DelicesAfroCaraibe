@@ -13,6 +13,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d delices_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - delices_network
 
@@ -21,6 +26,22 @@ services:
     container_name: delices_redis
     ports:
       - "56379:6379"
+    networks:
+      - delices_network
+
+  prisma-migrate:
+    build:
+      context: .
+      dockerfile: ./services/auth-service/Dockerfile
+    container_name: prisma_migrate
+    environment:
+      - DATABASE_URL=postgresql://delices_user:delices_password@postgres:5432/delices_db
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "npx prisma migrate deploy --schema=/app/shared/prisma/schema.prisma"]
+    restart: "no"
     networks:
       - delices_network
 
@@ -36,8 +57,12 @@ services:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      prisma-migrate:
+        condition: service_completed_successfully
     networks:
       - delices_network
 
@@ -67,7 +92,10 @@ services:
       - DATABASE_URL=postgresql://delices_user:delices_password@postgres:5432/delices_db
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      prisma-migrate:
+        condition: service_completed_successfully
     networks:
       - delices_network
 
@@ -84,7 +112,10 @@ services:
       - NOTIFICATION_SERVICE_URL=http://notification-service:3007/api/notifications/send
       - SMS_SERVICE_URL=http://sms-service:3012/sms/send
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      prisma-migrate:
+        condition: service_completed_successfully
     networks:
       - delices_network
 

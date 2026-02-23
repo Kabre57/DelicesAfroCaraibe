@@ -141,6 +141,38 @@ export interface Delivery {
   createdAt: string
   updatedAt: string
   completedAt?: string
+  order?: Order
+  livreur?: Livreur
+}
+
+export interface CourierPayout {
+  deliveryId: string
+  orderId: string
+  deliveredAt: string
+  orderTotal: number
+  gross: number
+  platformCommission: number
+  net: number
+}
+
+export interface CourierMetrics {
+  earnings: {
+    today: number
+    week: number
+    total: number
+    formula: {
+      baseFee: number
+      variableRate: number
+      platformCommissionRate: number
+    }
+  }
+  stats: {
+    deliveriesCount: number
+    acceptanceRate: number
+    cancellationRate: number
+    averageWaitMinutes: number
+  }
+  payouts: CourierPayout[]
 }
 
 export interface Review {

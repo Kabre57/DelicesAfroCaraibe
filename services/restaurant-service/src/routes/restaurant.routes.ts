@@ -2,6 +2,8 @@ import { Router } from 'express'
 import {
   getAllRestaurants,
   getRestaurantById,
+  getDiscoveryHome,
+  getMyRestaurateurDashboard,
   createRestaurant,
   updateRestaurant,
   deleteRestaurant,
@@ -17,6 +19,8 @@ import { authenticate, authorizeRoles } from '../middlewares/auth.middleware'
 
 const router = Router()
 
+router.get('/discover/home', getDiscoveryHome)
+router.get('/my/dashboard', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), getMyRestaurateurDashboard)
 router.get('/', getAllRestaurants)
 router.get('/:id', getRestaurantById)
 router.get('/:restaurantId/menu', (req, res, next) =>
