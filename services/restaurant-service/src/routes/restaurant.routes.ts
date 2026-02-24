@@ -3,6 +3,7 @@ import {
   getAllRestaurants,
   getRestaurantById,
   getDiscoveryHome,
+  getDiscoveryServices,
   getMyRestaurateurDashboard,
   createRestaurant,
   updateRestaurant,
@@ -20,6 +21,7 @@ import { authenticate, authorizeRoles } from '../middlewares/auth.middleware'
 const router = Router()
 
 router.get('/discover/home', getDiscoveryHome)
+router.get('/discover/services', getDiscoveryServices)
 router.get('/my/dashboard', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), getMyRestaurateurDashboard)
 router.get('/', getAllRestaurants)
 router.get('/:id', getRestaurantById)

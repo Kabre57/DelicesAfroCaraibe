@@ -352,6 +352,13 @@ const ADMIN_CONFIG_DEFAULTS = {
   defaultCommissionPercent: 22,
   twoFactorRequired: true,
   dailyReportEnabled: true,
+  homeLocationLabel: '',
+  homeSearchPlaceholder: 'Restaurants, plats, cuisines...',
+  homePromoTitle: '',
+  homePromoCode: '',
+  homeServicesCoursesTitle: 'Courses',
+  homeServicesPharmacyTitle: 'Pharmacie',
+  homeServicesFlowersTitle: 'Fleurs et cadeaux',
 }
 
 const safeJsonParse = <T>(value: string, fallback: T): T => {

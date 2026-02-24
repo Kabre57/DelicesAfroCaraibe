@@ -288,6 +288,76 @@ export const getDiscoveryHome = async (req: Request, res: Response) => {
   }
 }
 
+export const getDiscoveryServices = async (req: Request, res: Response) => {
+  try {
+    const city = typeof req.query.city === 'string' ? req.query.city : undefined
+    const limit = Number(req.query.limit || 6)
+    const where: any = { isActive: true }
+    if (city) where.city = city
+
+    const rows = await prisma.restaurant.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        cuisineType: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.max(limit * 4, 30),
+    })
+
+    const pickByType = (matcher: (type: string) => boolean) =>
+      rows.filter((r) => matcher(r.cuisineType)).slice(0, limit)
+
+    const isCourses = (type: string) => {
+      const t = type.toLowerCase()
+      return (
+        t.includes('super') ||
+        t.includes('epicer') ||
+        t.includes('course') ||
+        t.includes('market')
+      )
+    }
+
+    const isPharmacy = (type: string) => {
+      const t = type.toLowerCase()
+      return t.includes('pharma') || t.includes('parapharma')
+    }
+
+    const isFlowers = (type: string) => {
+      const t = type.toLowerCase()
+      return t.includes('fleur') || t.includes('cadeau')
+    }
+
+    const services = [
+      {
+        key: 'COURSES',
+        title: 'Courses',
+        items: pickByType(isCourses),
+      },
+      {
+        key: 'PHARMACY',
+        title: 'Pharmacie',
+        items: pickByType(isPharmacy),
+      },
+      {
+        key: 'FLOWERS',
+        title: 'Fleurs et cadeaux',
+        items: pickByType(isFlowers),
+      },
+    ].filter((service) => service.items.length > 0)
+
+    return res.json({
+      city: city || null,
+      services,
+    })
+  } catch (error) {
+    console.error('Get discovery services error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
 export const getMyRestaurateurDashboard = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' })

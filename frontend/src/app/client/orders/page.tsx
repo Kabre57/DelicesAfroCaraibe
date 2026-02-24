@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { getOrderSocket } from '@/lib/socket'
 import { orderAPI } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Order } from '@/types'
@@ -19,6 +21,7 @@ const statusStyles: Record<string, string> = {
 }
 
 export default function ClientOrdersPage() {
+  const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -119,6 +122,16 @@ export default function ClientOrdersPage() {
                     </Badge>
                   </div>
                 )}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button size="sm" variant="outline" onClick={() => router.push(`/client/orders/${order.id}`)}>
+                    Suivre
+                  </Button>
+                  {order.payment?.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
+                    <Button size="sm" onClick={() => router.push(`/client/payment?orderId=${order.id}`)}>
+                      Payer maintenant
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
