@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -49,10 +49,10 @@ export default function RestaurantsSearchPage() {
 
   const cuisineTypeOptions = [
     'Africain',
-    'Caribéen',
+    'CaribÃ©en',
     'Antillais',
-    'Créole',
-    'Sénégalais',
+    'CrÃ©ole',
+    'SÃ©nÃ©galais',
     'Ivoirien',
     'Camerounais',
     'Togolais',
@@ -142,7 +142,7 @@ export default function RestaurantsSearchPage() {
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">DÉLICES AFRO-CARAÏBE</h1>
+            <h1 className="text-2xl font-bold">DÃ‰LICES AFRO-CARAÃBE</h1>
             <ShoppingCartButton />
           </div>
           
@@ -194,7 +194,7 @@ export default function RestaurantsSearchPage() {
 
                   <div>
                     <Label className="text-base font-semibold mb-4 block">
-                      Prix moyen: {filters.priceRange[0]}€ - {filters.priceRange[1]}€
+                      Prix moyen: {filters.priceRange[0]}â‚¬ - {filters.priceRange[1]}â‚¬
                     </Label>
                     <Slider
                       min={0}
@@ -239,7 +239,7 @@ export default function RestaurantsSearchPage() {
                   </div>
 
                   <Button onClick={resetFilters} variant="outline" className="w-full">
-                    Réinitialiser les filtres
+                    RÃ©initialiser les filtres
                   </Button>
                 </div>
               </SheetContent>
@@ -251,7 +251,7 @@ export default function RestaurantsSearchPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6 flex justify-between items-center">
           <p className="text-muted-foreground">
-            {filteredRestaurants.length} restaurant{filteredRestaurants.length > 1 ? 's' : ''} trouvé{filteredRestaurants.length > 1 ? 's' : ''}
+            {filteredRestaurants.length} restaurant{filteredRestaurants.length > 1 ? 's' : ''} trouvÃ©{filteredRestaurants.length > 1 ? 's' : ''}
           </p>
           {filters.cuisineTypes.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -267,10 +267,10 @@ export default function RestaurantsSearchPage() {
         {filteredRestaurants.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">
-              Aucun restaurant ne correspond à vos critères
+              Aucun restaurant ne correspond Ã  vos critÃ¨res
             </p>
             <Button onClick={resetFilters} variant="outline" className="mt-4">
-              Réinitialiser les filtres
+              RÃ©initialiser les filtres
             </Button>
           </Card>
         ) : (
@@ -292,7 +292,7 @@ export default function RestaurantsSearchPage() {
                     <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500" />
                   )}
                   {restaurant.isOpen && (
-                    <Badge className="absolute top-2 right-2" variant="success">
+                    <Badge className="absolute top-2 right-2 bg-emerald-500 text-white" variant="secondary">
                       Ouvert
                     </Badge>
                   )}
