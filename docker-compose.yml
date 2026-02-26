@@ -45,6 +45,21 @@ services:
     networks:
       - delices_network
 
+  prisma-generate-order:
+    image: node:18-bullseye-slim
+    container_name: prisma_generate_order
+    profiles: ["tools"]
+    working_dir: /workspace/services/order-service
+    volumes:
+      - ./:/workspace
+    command:
+      [
+        "sh",
+        "-c",
+        "npm install && npx prisma generate --schema=../../shared/prisma/schema.prisma",
+      ]
+    restart: "no"
+
   auth-service:
     build:
       context: .
@@ -232,7 +247,7 @@ services:
       - delices_network
 
   frontend:
-    build: ./frontend
+    build: ./delices-afro-caraibes-frontend
     container_name: delices_frontend
     ports:
       - "3100:3000"

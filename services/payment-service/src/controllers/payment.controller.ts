@@ -38,6 +38,11 @@ async function sendSMS(to: string | undefined, message: string) {
 export const processPayment = async (req: Request, res: Response) => {
   try {
     const { orderId, paymentMethod, transactionId } = req.body
+    const normalizedMethod = paymentMethod === 'CARD' ? 'CARD' : 'CASH'
+    const resolvedTransactionId =
+      normalizedMethod === 'CARD'
+        ? transactionId || `CARD-${Date.now()}`
+        : transactionId || `CASH-${Date.now()}`
 
     const payment = await prisma.payment.findFirst({
       where: { orderId },
@@ -51,8 +56,8 @@ export const processPayment = async (req: Request, res: Response) => {
       where: { id: payment.id },
       data: {
         status: 'COMPLETED',
-        paymentMethod,
-        transactionId,
+        paymentMethod: normalizedMethod,
+        transactionId: resolvedTransactionId,
       },
     })
 

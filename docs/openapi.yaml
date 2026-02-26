@@ -1,0 +1,1036 @@
+openapi: 3.0.3
+info:
+  title: Delices Afro Caraibe API
+  version: 1.0.0
+  description: |
+    Cartographie OpenAPI des microservices (état actuel du code).
+    Note: certains endpoints sont "public côté route" (pas de middleware auth), même s'ils sont sensibles en pratique.
+servers:
+  - url: http://localhost:3100
+    description: Frontend (non API)
+tags:
+  - name: Auth
+  - name: Users
+  - name: Restaurants
+  - name: Menu
+  - name: Orders
+  - name: Deliveries
+  - name: Payments
+  - name: Notifications
+  - name: Geolocation
+  - name: Chat
+  - name: Upload
+  - name: Stripe
+  - name: SMS
+  - name: AI
+  - name: Loyalty
+  - name: Health
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register user
+      servers: [{ url: http://localhost:3101 }]
+      responses:
+        '201': { description: Created }
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login user
+      servers: [{ url: http://localhost:3101 }]
+      responses:
+        '200': { description: OK }
+  /api/auth/verify:
+    get:
+      tags: [Auth]
+      summary: Verify JWT token
+      servers: [{ url: http://localhost:3101 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      servers: [{ url: http://localhost:3102 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+    put:
+      tags: [Users]
+      summary: Update user by ID
+      servers: [{ url: http://localhost:3102 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+  /api/users/client/{userId}:
+    put:
+      tags: [Users]
+      summary: Update client profile
+      servers: [{ url: http://localhost:3102 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200': { description: OK }
+  /api/users/livreur/{userId}:
+    put:
+      tags: [Users]
+      summary: Update courier profile
+      servers: [{ url: http://localhost:3102 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200': { description: OK }
+  /api/users/restaurateur/{userId}:
+    get:
+      tags: [Users]
+      summary: Get restaurateur profile
+      servers: [{ url: http://localhost:3102 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200': { description: OK }
+  /api/users/restaurateur/{userId}/approve:
+    put:
+      tags: [Users]
+      summary: Approve restaurateur (ADMIN)
+      servers: [{ url: http://localhost:3102 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200': { description: OK }
+  /api/users/livreur/{userId}/approve:
+    put:
+      tags: [Users]
+      summary: Approve courier (ADMIN)
+      servers: [{ url: http://localhost:3102 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200': { description: OK }
+  /api/users/pending/restaurateurs:
+    get:
+      tags: [Users]
+      summary: List pending restaurateurs (ADMIN)
+      servers: [{ url: http://localhost:3102 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/users/pending/livreurs:
+    get:
+      tags: [Users]
+      summary: List pending couriers (ADMIN)
+      servers: [{ url: http://localhost:3102 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  /api/restaurants/discover/home:
+    get:
+      tags: [Restaurants]
+      summary: Discovery home data
+      servers: [{ url: http://localhost:3103 }]
+      responses:
+        '200': { description: OK }
+  /api/restaurants/discover/services:
+    get:
+      tags: [Restaurants]
+      summary: Discovery service groups
+      servers: [{ url: http://localhost:3103 }]
+      responses:
+        '200': { description: OK }
+  /api/restaurants/my/dashboard:
+    get:
+      tags: [Restaurants]
+      summary: Restaurateur dashboard (RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3103 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/restaurants:
+    get:
+      tags: [Restaurants]
+      summary: List restaurants
+      servers: [{ url: http://localhost:3103 }]
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Restaurants]
+      summary: Create restaurant (RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3103 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+  /api/restaurants/{id}:
+    get:
+      tags: [Restaurants]
+      summary: Get restaurant by ID
+      servers: [{ url: http://localhost:3103 }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+    put:
+      tags: [Restaurants]
+      summary: Update restaurant (RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3103 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Restaurants]
+      summary: Delete restaurant (RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3103 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: No Content }
+  /api/restaurants/{restaurantId}/menu:
+    get:
+      tags: [Menu]
+      summary: List menu items by restaurant
+      servers: [{ url: http://localhost:3103 }]
+      parameters:
+        - $ref: '#/components/parameters/RestaurantIdPath'
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Menu]
+      summary: Create menu item via restaurant route (RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3103 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/RestaurantIdPath'
+      responses:
+        '201': { description: Created }
+  /api/restaurants/menu/item/{id}:
+    get:
+      tags: [Menu]
+      summary: Get menu item by ID
+      servers: [{ url: http://localhost:3103 }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+  /api/restaurants/menu/{id}:
+    put:
+      tags: [Menu]
+      summary: Update menu item via restaurant route (RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3103 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Menu]
+      summary: Delete menu item via restaurant route (RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3103 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: No Content }
+  /api/menu/restaurant/{restaurantId}:
+    get:
+      tags: [Menu]
+      summary: List menu items by restaurant (dedicated route)
+      servers: [{ url: http://localhost:3103 }]
+      parameters:
+        - $ref: '#/components/parameters/RestaurantIdPath'
+      responses:
+        '200': { description: OK }
+  /api/menu/{id}:
+    get:
+      tags: [Menu]
+      summary: Get menu item by ID (dedicated route)
+      servers: [{ url: http://localhost:3103 }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+    put:
+      tags: [Menu]
+      summary: Update menu item (RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3103 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Menu]
+      summary: Delete menu item (RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3103 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: No Content }
+  /api/menu:
+    post:
+      tags: [Menu]
+      summary: Create menu item (RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3103 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /api/orders:
+    post:
+      tags: [Orders]
+      summary: Create order (CLIENT|ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+  /api/orders/me:
+    get:
+      tags: [Orders]
+      summary: Get current client orders (CLIENT|ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/orders/client/me/summary:
+    get:
+      tags: [Orders]
+      summary: Get current client summary (CLIENT|ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/orders/admin/overview:
+    get:
+      tags: [Orders]
+      summary: Admin overview (ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/orders/admin/transactions:
+    get:
+      tags: [Orders]
+      summary: Admin transactions (ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/orders/admin/config:
+    get:
+      tags: [Orders]
+      summary: Read admin config (ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+    put:
+      tags: [Orders]
+      summary: Update admin config (ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/orders/admin/support/tickets:
+    post:
+      tags: [Orders]
+      summary: Create support ticket (auth)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+    get:
+      tags: [Orders]
+      summary: List support tickets (ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/orders/admin/support/tickets/{id}:
+    put:
+      tags: [Orders]
+      summary: Update support ticket (ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+  /api/orders/admin/audit-logs:
+    post:
+      tags: [Orders]
+      summary: Create audit log (ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+    get:
+      tags: [Orders]
+      summary: List audit logs (ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/orders/client/{clientId}:
+    get:
+      tags: [Orders]
+      summary: Get orders by client ID (public côté route)
+      servers: [{ url: http://localhost:3104 }]
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/orders/restaurant/{restaurantId}:
+    get:
+      tags: [Orders]
+      summary: Get orders by restaurant ID (public côté route)
+      servers: [{ url: http://localhost:3104 }]
+      parameters:
+        - $ref: '#/components/parameters/RestaurantIdPath'
+      responses:
+        '200': { description: OK }
+  /api/orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Get order by ID (public côté route)
+      servers: [{ url: http://localhost:3104 }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+  /api/orders/{id}/status:
+    put:
+      tags: [Orders]
+      summary: Update order status (RESTAURATEUR|LIVREUR|ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+  /api/orders/{id}/cancel:
+    put:
+      tags: [Orders]
+      summary: Cancel order (CLIENT|RESTAURATEUR|ADMIN)
+      servers: [{ url: http://localhost:3104 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+
+  /api/deliveries/available:
+    get:
+      tags: [Deliveries]
+      summary: List available deliveries (LIVREUR|ADMIN)
+      servers: [{ url: http://localhost:3105 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/deliveries/livreur/me:
+    get:
+      tags: [Deliveries]
+      summary: Get my deliveries (LIVREUR|ADMIN)
+      servers: [{ url: http://localhost:3105 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/deliveries/livreur/me/metrics:
+    get:
+      tags: [Deliveries]
+      summary: Get my courier metrics (LIVREUR|ADMIN)
+      servers: [{ url: http://localhost:3105 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/deliveries/livreur/{livreurId}:
+    get:
+      tags: [Deliveries]
+      summary: Get deliveries by courier ID (LIVREUR|ADMIN)
+      servers: [{ url: http://localhost:3105 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: livreurId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/deliveries/{id}:
+    get:
+      tags: [Deliveries]
+      summary: Get delivery by ID (LIVREUR|ADMIN)
+      servers: [{ url: http://localhost:3105 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+  /api/deliveries/{id}/accept:
+    put:
+      tags: [Deliveries]
+      summary: Accept delivery (LIVREUR|ADMIN)
+      servers: [{ url: http://localhost:3105 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+  /api/deliveries/{id}/status:
+    put:
+      tags: [Deliveries]
+      summary: Update delivery status (LIVREUR|ADMIN)
+      servers: [{ url: http://localhost:3105 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+  /api/deliveries/support/report:
+    post:
+      tags: [Deliveries]
+      summary: Report delivery issue (LIVREUR|ADMIN)
+      servers: [{ url: http://localhost:3105 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /api/payments/process:
+    post:
+      tags: [Payments]
+      summary: Process payment
+      servers: [{ url: http://localhost:3106 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/payments/order/{orderId}:
+    get:
+      tags: [Payments]
+      summary: Get payment by order ID
+      servers: [{ url: http://localhost:3106 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/payments/refund/{orderId}:
+    post:
+      tags: [Payments]
+      summary: Refund payment by order ID
+      servers: [{ url: http://localhost:3106 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /api/notifications/send:
+    post:
+      tags: [Notifications]
+      summary: Send notification (public côté route)
+      servers: [{ url: http://localhost:3107 }]
+      responses:
+        '200': { description: OK }
+  /api/notifications/user/{userId}:
+    get:
+      tags: [Notifications]
+      summary: Get notifications by user ID (public côté route)
+      servers: [{ url: http://localhost:3107 }]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200': { description: OK }
+  /api/notifications/{id}/read:
+    put:
+      tags: [Notifications]
+      summary: Mark notification as read (public côté route)
+      servers: [{ url: http://localhost:3107 }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+  /api/notifications/user/{userId}/read-all:
+    put:
+      tags: [Notifications]
+      summary: Mark all user notifications as read (public côté route)
+      servers: [{ url: http://localhost:3107 }]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200': { description: OK }
+
+  /api/geocode:
+    post:
+      tags: [Geolocation]
+      summary: Geocode address
+      servers: [{ url: http://localhost:3108 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/reverse-geocode:
+    post:
+      tags: [Geolocation]
+      summary: Reverse geocode coordinates
+      servers: [{ url: http://localhost:3108 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/distance:
+    post:
+      tags: [Geolocation]
+      summary: Calculate distance
+      servers: [{ url: http://localhost:3108 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/route:
+    post:
+      tags: [Geolocation]
+      summary: Calculate route
+      servers: [{ url: http://localhost:3108 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/nearby:
+    post:
+      tags: [Geolocation]
+      summary: Find nearby places
+      servers: [{ url: http://localhost:3108 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  /api/chat/{orderId}/history:
+    get:
+      tags: [Chat]
+      summary: Get chat history by order ID
+      servers: [{ url: http://localhost:3109 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/chat/{orderId}:
+    delete:
+      tags: [Chat]
+      summary: Delete chat history by order ID
+      servers: [{ url: http://localhost:3109 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/chat/{orderId}/read:
+    post:
+      tags: [Chat]
+      summary: Mark order chat messages as read
+      servers: [{ url: http://localhost:3109 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/chat/{orderId}/unread/{userId}:
+    get:
+      tags: [Chat]
+      summary: Get unread count by order and user
+      servers: [{ url: http://localhost:3109 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200': { description: OK }
+
+  /api/upload/single:
+    post:
+      tags: [Upload]
+      summary: Upload single image (multipart, field=image)
+      servers: [{ url: http://localhost:3110 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/upload/multiple:
+    post:
+      tags: [Upload]
+      summary: Upload multiple images (multipart, field=images, max=10)
+      servers: [{ url: http://localhost:3110 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/upload/{publicId}:
+    delete:
+      tags: [Upload]
+      summary: Delete image by publicId
+      servers: [{ url: http://localhost:3110 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/upload/{publicId}/info:
+    get:
+      tags: [Upload]
+      summary: Get image metadata by publicId
+      servers: [{ url: http://localhost:3110 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /api/payment/create-intent:
+    post:
+      tags: [Stripe]
+      summary: Create Stripe payment intent
+      servers: [{ url: http://localhost:3111 }]
+      responses:
+        '200': { description: OK }
+  /api/payment/create-customer:
+    post:
+      tags: [Stripe]
+      summary: Create Stripe customer
+      servers: [{ url: http://localhost:3111 }]
+      responses:
+        '200': { description: OK }
+  /api/payment/create-setup-intent:
+    post:
+      tags: [Stripe]
+      summary: Create Stripe setup intent
+      servers: [{ url: http://localhost:3111 }]
+      responses:
+        '200': { description: OK }
+  /api/payment/methods/{customerId}:
+    get:
+      tags: [Stripe]
+      summary: List Stripe payment methods by customer
+      servers: [{ url: http://localhost:3111 }]
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/payment/methods/{paymentMethodId}:
+    delete:
+      tags: [Stripe]
+      summary: Delete Stripe payment method
+      servers: [{ url: http://localhost:3111 }]
+      parameters:
+        - name: paymentMethodId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/payment/refund:
+    post:
+      tags: [Stripe]
+      summary: Create Stripe refund
+      servers: [{ url: http://localhost:3111 }]
+      responses:
+        '200': { description: OK }
+  /api/payment/create-subscription:
+    post:
+      tags: [Stripe]
+      summary: Create Stripe subscription
+      servers: [{ url: http://localhost:3111 }]
+      responses:
+        '200': { description: OK }
+  /api/payment/cancel-subscription/{subscriptionId}:
+    post:
+      tags: [Stripe]
+      summary: Cancel Stripe subscription
+      servers: [{ url: http://localhost:3111 }]
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /webhook:
+    post:
+      tags: [Stripe]
+      summary: Stripe webhook callback
+      description: Requires `stripe-signature` header.
+      servers: [{ url: http://localhost:3111 }]
+      responses:
+        '200': { description: OK }
+        '400': { description: Bad Request }
+
+  /api/sms/send:
+    post:
+      tags: [SMS]
+      summary: Send SMS
+      servers: [{ url: http://localhost:3112 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/sms/send-template:
+    post:
+      tags: [SMS]
+      summary: Send templated SMS
+      servers: [{ url: http://localhost:3112 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/sms/verify-phone:
+    post:
+      tags: [SMS]
+      summary: Start phone verification
+      servers: [{ url: http://localhost:3112 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/sms/verify-code:
+    post:
+      tags: [SMS]
+      summary: Verify phone code
+      servers: [{ url: http://localhost:3112 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/sms/bulk-send:
+    post:
+      tags: [SMS]
+      summary: Bulk send SMS
+      servers: [{ url: http://localhost:3112 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/sms/status/{messageId}:
+    get:
+      tags: [SMS]
+      summary: Get SMS delivery status
+      servers: [{ url: http://localhost:3112 }]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /api/recommendations/restaurants:
+    post:
+      tags: [AI]
+      summary: Get restaurant recommendations
+      servers: [{ url: http://localhost:3113 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/recommendations/dishes:
+    post:
+      tags: [AI]
+      summary: Get dish recommendations
+      servers: [{ url: http://localhost:3113 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/ai/chat:
+    post:
+      tags: [AI]
+      summary: Chat with AI assistant
+      servers: [{ url: http://localhost:3113 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/ai/menu-suggestions:
+    post:
+      tags: [AI]
+      summary: Get AI menu suggestions
+      servers: [{ url: http://localhost:3113 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/ai/sentiment-analysis:
+    post:
+      tags: [AI]
+      summary: Analyze text sentiment
+      servers: [{ url: http://localhost:3113 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/ai/delivery-time-prediction:
+    post:
+      tags: [AI]
+      summary: Predict delivery time
+      servers: [{ url: http://localhost:3113 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+  /api/ai/fraud-detection:
+    post:
+      tags: [AI]
+      summary: Fraud risk detection
+      servers: [{ url: http://localhost:3113 }]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  /api/loyalty/account:
+    post:
+      tags: [Loyalty]
+      summary: Create loyalty account (public côté route)
+      servers: [{ url: http://localhost:3114 }]
+      responses:
+        '200': { description: OK }
+  /api/loyalty/account/{userId}:
+    get:
+      tags: [Loyalty]
+      summary: Get loyalty account (public côté route)
+      servers: [{ url: http://localhost:3114 }]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200': { description: OK }
+  /api/loyalty/points/add:
+    post:
+      tags: [Loyalty]
+      summary: Add loyalty points (public côté route)
+      servers: [{ url: http://localhost:3114 }]
+      responses:
+        '200': { description: OK }
+  /api/loyalty/rewards:
+    get:
+      tags: [Loyalty]
+      summary: List loyalty rewards (public côté route)
+      servers: [{ url: http://localhost:3114 }]
+      responses:
+        '200': { description: OK }
+  /api/loyalty/rewards/redeem:
+    post:
+      tags: [Loyalty]
+      summary: Redeem reward (public côté route)
+      servers: [{ url: http://localhost:3114 }]
+      responses:
+        '200': { description: OK }
+  /api/subscription/plans:
+    get:
+      tags: [Loyalty]
+      summary: List subscription plans (public côté route)
+      servers: [{ url: http://localhost:3114 }]
+      responses:
+        '200': { description: OK }
+  /api/subscription/subscribe:
+    post:
+      tags: [Loyalty]
+      summary: Subscribe plan (public côté route)
+      servers: [{ url: http://localhost:3114 }]
+      responses:
+        '200': { description: OK }
+  /api/subscription/cancel:
+    post:
+      tags: [Loyalty]
+      summary: Cancel subscription (public côté route)
+      servers: [{ url: http://localhost:3114 }]
+      responses:
+        '200': { description: OK }
+  /api/referral/code/{userId}:
+    get:
+      tags: [Loyalty]
+      summary: Get referral code (public côté route)
+      servers: [{ url: http://localhost:3114 }]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200': { description: OK }
+  /api/referral/apply:
+    post:
+      tags: [Loyalty]
+      summary: Apply referral code (public côté route)
+      servers: [{ url: http://localhost:3114 }]
+      responses:
+        '200': { description: OK }
+
+  /health:
+    get:
+      tags: [Health]
+      summary: Service healthcheck
+      description: Endpoint exposé par tous les services backend sur leur port respectif.
+      servers:
+        - { url: http://localhost:3101 }
+        - { url: http://localhost:3102 }
+        - { url: http://localhost:3103 }
+        - { url: http://localhost:3104 }
+        - { url: http://localhost:3105 }
+        - { url: http://localhost:3106 }
+        - { url: http://localhost:3107 }
+        - { url: http://localhost:3108 }
+        - { url: http://localhost:3109 }
+        - { url: http://localhost:3110 }
+        - { url: http://localhost:3111 }
+        - { url: http://localhost:3112 }
+        - { url: http://localhost:3113 }
+        - { url: http://localhost:3114 }
+      responses:
+        '200': { description: OK }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+    RestaurantIdPath:
+      name: restaurantId
+      in: path
+      required: true
+      schema:
+        type: string

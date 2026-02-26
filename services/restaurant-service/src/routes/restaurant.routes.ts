@@ -10,6 +10,12 @@ import {
   deleteRestaurant,
 } from '../controllers/restaurant.controller'
 import {
+  listCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from '../controllers/category.controller'
+import {
   getMenuItemsByRestaurant,
   getMenuItemById,
   createMenuItem,
@@ -22,6 +28,7 @@ const router = Router()
 
 router.get('/discover/home', getDiscoveryHome)
 router.get('/discover/services', getDiscoveryServices)
+router.get('/categories', listCategories)
 router.get('/my/dashboard', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), getMyRestaurateurDashboard)
 router.get('/', getAllRestaurants)
 router.get('/:id', getRestaurantById)
@@ -31,6 +38,9 @@ router.get('/:restaurantId/menu', (req, res, next) =>
 router.get('/menu/item/:id', (req, res, next) => getMenuItemById(req, res).catch(next))
 
 router.post('/', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), createRestaurant)
+router.post('/categories', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), createCategory)
+router.put('/categories/:id', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), updateCategory)
+router.delete('/categories/:id', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), deleteCategory)
 router.put('/:id', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), updateRestaurant)
 router.delete('/:id', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), deleteRestaurant)
 router.post(

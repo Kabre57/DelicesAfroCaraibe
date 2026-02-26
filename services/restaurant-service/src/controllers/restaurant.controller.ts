@@ -194,6 +194,38 @@ export const getDiscoveryHome = async (req: Request, res: Response) => {
       orderBy: { _count: { cuisineType: 'desc' } },
       take: 12,
     })
+    const categoryNames = categoriesRaw.map((x) => x.cuisineType)
+    const configuredCategories = await prisma.category.findMany({
+      where: { name: { in: categoryNames } },
+      select: {
+        name: true,
+        imageUrl: true,
+        isActive: true,
+      },
+    })
+    const configuredCategoryMap = new Map(
+      configuredCategories.map((c) => [c.name, c])
+    )
+    const categoryImageRows = await prisma.restaurant.findMany({
+      where: {
+        ...restaurantWhere,
+        cuisineType: { in: categoryNames },
+        imageUrl: { not: null },
+      },
+      select: {
+        cuisineType: true,
+        imageUrl: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+    const categoryImageByCuisine = new Map<string, string>()
+    for (const row of categoryImageRows) {
+      if (!row.imageUrl) continue
+      if (!categoryImageByCuisine.has(row.cuisineType)) {
+        categoryImageByCuisine.set(row.cuisineType, row.imageUrl)
+      }
+    }
 
     const popularByOrders = await prisma.order.groupBy({
       by: ['restaurantId'],
@@ -242,6 +274,80 @@ export const getDiscoveryHome = async (req: Request, res: Response) => {
       .filter((x): x is NonNullable<typeof x> => Boolean(x))
       .slice(0, limit)
 
+    const popularDishRows = await prisma.orderItem.groupBy({
+      by: ['menuItemId'],
+      _count: { menuItemId: true },
+      orderBy: { _count: { menuItemId: 'desc' } },
+      take: Math.max(limit * 2, 12),
+    })
+    const popularDishIds = popularDishRows.map((x) => x.menuItemId)
+    const popularDishItems = await prisma.menuItem.findMany({
+      where: {
+        id: { in: popularDishIds },
+        isAvailable: true,
+        ...(city ? { restaurant: { city, isActive: true } } : { restaurant: { isActive: true } }),
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+          },
+        },
+      },
+    })
+    let popularDishes = popularDishRows
+      .map((row) => {
+        const dish = popularDishItems.find((m) => m.id === row.menuItemId)
+        if (!dish) return null
+        return {
+          id: dish.id,
+          name: dish.name,
+          category: dish.category,
+          imageUrl: dish.imageUrl,
+          price: Number(dish.price.toFixed(2)),
+          orderCount: row._count.menuItemId,
+          restaurant: dish.restaurant,
+        }
+      })
+      .filter((x): x is NonNullable<typeof x> => Boolean(x))
+      .slice(0, limit)
+
+    if (popularDishes.length < limit) {
+      const fallback = await prisma.menuItem.findMany({
+        where: {
+          isAvailable: true,
+          ...(city ? { restaurant: { city, isActive: true } } : { restaurant: { isActive: true } }),
+        },
+        include: {
+          restaurant: {
+            select: {
+              id: true,
+              name: true,
+              city: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      })
+      const existing = new Set(popularDishes.map((d) => d.id))
+      for (const dish of fallback) {
+        if (existing.has(dish.id)) continue
+        popularDishes.push({
+          id: dish.id,
+          name: dish.name,
+          category: dish.category,
+          imageUrl: dish.imageUrl,
+          price: Number(dish.price.toFixed(2)),
+          orderCount: 0,
+          restaurant: dish.restaurant,
+        })
+        if (popularDishes.length >= limit) break
+      }
+    }
+
     const newestRestaurants = await prisma.restaurant.findMany({
       where: restaurantWhere,
       include: {
@@ -269,17 +375,31 @@ export const getDiscoveryHome = async (req: Request, res: Response) => {
       }
     })
 
+    const categoryCountByName = new Map(categoriesRaw.map((item) => [item.cuisineType, item._count.id]))
+    const categoryNameSet = new Set<string>([
+      ...categoriesRaw.map((item) => item.cuisineType),
+      ...configuredCategories.filter((c) => c.isActive).map((c) => c.name),
+    ])
+    const mergedCategories = Array.from(categoryNameSet)
+      .map((name) => ({
+        name,
+        restaurantCount: categoryCountByName.get(name) || 0,
+        imageUrl: configuredCategoryMap.get(name)?.imageUrl || categoryImageByCuisine.get(name) || null,
+        isActive: configuredCategoryMap.get(name)?.isActive ?? true,
+      }))
+      .filter((item) => item.isActive)
+      .sort((a, b) => b.restaurantCount - a.restaurantCount || a.name.localeCompare(b.name))
+      .slice(0, 12)
+
     res.json({
       city: city || null,
       promo: {
         code: 'BIENVENUE',
         title: '-50% sur votre premiere commande',
       },
-      categories: categoriesRaw.map((item) => ({
-        name: item.cuisineType,
-        restaurantCount: item._count.id,
-      })),
+      categories: mergedCategories,
       popular,
+      popularDishes,
       newcomers,
     })
   } catch (error) {

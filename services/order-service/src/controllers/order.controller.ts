@@ -46,7 +46,9 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response) => {
       deliveryCity,
       deliveryPostalCode,
       notes,
+      paymentMethod,
     } = req.body
+    const normalizedPaymentMethod = paymentMethod === 'CARD' ? 'CARD' : 'CASH'
 
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' })
 
@@ -105,7 +107,7 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response) => {
         orderId: order.id,
         amount: totalAmount,
         status: 'PENDING',
-        paymentMethod: 'CARD',
+        paymentMethod: normalizedPaymentMethod,
       },
     })
 
@@ -912,14 +914,26 @@ export const getSupportTickets = async (req: AuthenticatedRequest, res: Response
       take: 200,
     })
 
+    type SupportTicketPayload = {
+      status?: string
+      priority?: string
+      [key: string]: unknown
+    }
+
     const mapped = raw
-      .map((ticket) => ({
+      .map((ticket): SupportTicketPayload & {
+        id: string
+        title: string
+        sentAt: Date
+        isRead: boolean
+        userId: string
+      } => ({
         id: ticket.id,
         title: ticket.title,
         sentAt: ticket.sentAt,
         isRead: ticket.isRead,
         userId: ticket.userId,
-        ...safeJsonParse<Record<string, unknown>>(ticket.message, {}),
+        ...safeJsonParse<SupportTicketPayload>(ticket.message, {}),
       }))
       .filter((ticket) => {
         if (status && ticket.status !== status) return false

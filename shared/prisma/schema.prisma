@@ -39,6 +39,13 @@ enum DeliveryStatus {
   DELIVERED
 }
 
+enum DocumentStatus {
+  PENDING
+  VALID
+  EXPIRED
+  REJECTED
+}
+
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
@@ -79,6 +86,7 @@ model Restaurateur {
   approvedAt  DateTime?
 
   restaurants Restaurant[]
+  documents   RestaurateurDocument[]
 
   @@map("restaurateurs")
 }
@@ -103,8 +111,22 @@ model Restaurant {
   menuItems       MenuItem[]
   orders          Order[]
   reviews         Review[]
+  subAccounts     RestaurantSubAccount[]
 
   @@map("restaurants")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("categories")
 }
 
 model MenuItem {
@@ -184,10 +206,61 @@ model Livreur {
   isAvailable   Boolean   @default(true)
   isApproved    Boolean   @default(false)
   approvedAt    DateTime?
+  averageRating Float     @default(5)
   
   deliveries    Delivery[]
+  documents     LivreurDocument[]
 
   @@map("livreurs")
+}
+
+model RestaurateurDocument {
+  id             String         @id @default(uuid())
+  restaurateurId String
+  restaurateur   Restaurateur   @relation(fields: [restaurateurId], references: [id], onDelete: Cascade)
+  type           String
+  fileUrl        String
+  status         DocumentStatus @default(PENDING)
+  expiresAt      DateTime?
+  verifiedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("restaurateur_documents")
+}
+
+model LivreurDocument {
+  id         String         @id @default(uuid())
+  livreurId  String
+  livreur    Livreur        @relation(fields: [livreurId], references: [id], onDelete: Cascade)
+  type       String
+  fileUrl    String
+  status     DocumentStatus @default(PENDING)
+  expiresAt  DateTime?
+  verifiedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@map("livreur_documents")
+}
+
+model RestaurantSubAccount {
+  id           String      @id @default(uuid())
+  restaurantId String
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  firstName    String
+  lastName     String
+  email        String
+  passwordHash String
+  phone        String?
+  role         String      @default("STAFF")
+  mustChangePassword Boolean @default(true)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([email])
+  @@map("restaurant_sub_accounts")
 }
 
 model Delivery {

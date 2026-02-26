@@ -51,7 +51,6 @@ export const register = async (req: Request, res: Response) => {
         },
       })
 
-      // Si les infos restaurant sont fournies à l'inscription, on crée le restaurant immédiatement
       if (additionalData?.restaurant) {
         const r = additionalData.restaurant
         await prisma.restaurant.create({
@@ -69,8 +68,23 @@ export const register = async (req: Request, res: Response) => {
           },
         })
       }
+
+      const restaurateurDocuments = Array.isArray(additionalData?.documents)
+        ? additionalData.documents.filter((d: any) => d?.type && d?.fileUrl)
+        : []
+      if (restaurateurDocuments.length > 0) {
+        await prisma.restaurateurDocument.createMany({
+          data: restaurateurDocuments.map((d: any) => ({
+            restaurateurId: restaurateur.id,
+            type: String(d.type),
+            fileUrl: String(d.fileUrl),
+            status: 'PENDING',
+            expiresAt: d.expiresAt ? new Date(d.expiresAt) : null,
+          })),
+        })
+      }
     } else if (role === 'LIVREUR') {
-      await prisma.livreur.create({
+      const livreur = await prisma.livreur.create({
         data: {
           userId: user.id,
           vehicleType: additionalData?.vehicleType || 'scooter',
@@ -78,6 +92,21 @@ export const register = async (req: Request, res: Response) => {
           coverageZones: additionalData?.coverageZones || [],
         },
       })
+
+      const livreurDocuments = Array.isArray(additionalData?.documents)
+        ? additionalData.documents.filter((d: any) => d?.type && d?.fileUrl)
+        : []
+      if (livreurDocuments.length > 0) {
+        await prisma.livreurDocument.createMany({
+          data: livreurDocuments.map((d: any) => ({
+            livreurId: livreur.id,
+            type: String(d.type),
+            fileUrl: String(d.fileUrl),
+            status: 'PENDING',
+            expiresAt: d.expiresAt ? new Date(d.expiresAt) : null,
+          })),
+        })
+      }
     }
 
     const token = jwt.sign(
@@ -108,30 +137,86 @@ export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body
 
     const user = await prisma.user.findUnique({ where: { email } })
-    if (!user) {
+    if (user) {
+      const isPasswordValid = await bcrypt.compare(password, user.password)
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Invalid credentials' })
+      }
+
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        getJwtSecret(),
+        { expiresIn: JWT_EXPIRES_IN }
+      )
+
+      return res.json({
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+        },
+      })
+    }
+
+    const subAccount = await prisma.restaurantSubAccount.findUnique({
+      where: { email },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            restaurateur: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
+      },
+    })
+    if (!subAccount || !subAccount.isActive) {
       return res.status(401).json({ error: 'Invalid credentials' })
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password)
-    if (!isPasswordValid) {
+    const subPasswordValid = await bcrypt.compare(password, subAccount.passwordHash)
+    if (!subPasswordValid) {
       return res.status(401).json({ error: 'Invalid credentials' })
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
+      {
+        userId: subAccount.restaurant.restaurateur.userId,
+        ownerUserId: subAccount.restaurant.restaurateur.userId,
+        subAccountId: subAccount.id,
+        restaurantId: subAccount.restaurantId,
+        email: subAccount.email,
+        role: 'RESTAURATEUR',
+        isSubAccount: true,
+        subAccountRole: subAccount.role,
+        mustChangePassword: subAccount.mustChangePassword,
+      },
       getJwtSecret(),
       { expiresIn: JWT_EXPIRES_IN }
     )
 
-    res.json({
+    return res.json({
       token,
       user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
+        id: subAccount.id,
+        ownerUserId: subAccount.restaurant.restaurateur.userId,
+        email: subAccount.email,
+        role: 'RESTAURATEUR',
+        firstName: subAccount.firstName,
+        lastName: subAccount.lastName,
+        phone: subAccount.phone,
+        isSubAccount: true,
+        subAccountRole: subAccount.role,
+        restaurantId: subAccount.restaurantId,
+        mustChangePassword: subAccount.mustChangePassword,
       },
     })
   } catch (error) {
@@ -150,12 +235,44 @@ export const verifyToken = async (req: Request, res: Response) => {
 
     const decoded = jwt.verify(token, getJwtSecret()) as any
 
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId } })
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid token' })
+    if (decoded?.isSubAccount && decoded?.subAccountId) {
+      const subAccount = await prisma.restaurantSubAccount.findUnique({
+        where: { id: decoded.subAccountId },
+        include: {
+          restaurant: {
+            select: {
+              restaurateur: {
+                select: { userId: true },
+              },
+            },
+          },
+        },
+      })
+      if (!subAccount || !subAccount.isActive) {
+        return res.status(401).json({ error: 'Invalid token' })
+      }
+
+      return res.json({
+        user: {
+          id: subAccount.id,
+          ownerUserId: subAccount.restaurant.restaurateur.userId,
+          email: subAccount.email,
+          role: 'RESTAURATEUR',
+          firstName: subAccount.firstName,
+          lastName: subAccount.lastName,
+          phone: subAccount.phone,
+          isSubAccount: true,
+          subAccountRole: subAccount.role,
+          restaurantId: subAccount.restaurantId,
+          mustChangePassword: subAccount.mustChangePassword,
+        },
+      })
     }
 
-    res.json({
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } })
+    if (!user) return res.status(401).json({ error: 'Invalid token' })
+
+    return res.json({
       user: {
         id: user.id,
         email: user.email,

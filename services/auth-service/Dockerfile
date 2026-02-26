@@ -1,4 +1,4 @@
-FROM node:18-bullseye-slim
+﻿FROM node:18-bullseye-slim
 
 WORKDIR /app
 
@@ -18,3 +18,5 @@ RUN npm run build
 EXPOSE 3001
 
 CMD ["npm", "start"]
+
+
