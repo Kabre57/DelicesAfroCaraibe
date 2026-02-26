@@ -1,4 +1,4 @@
-'use client'
+ï»¿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -72,14 +72,14 @@ type NotificationItem = {
   sentAt?: string
 }
 
-const categoryEmoji: Record<string, string> = {
-  TIEP: '??',
-  YASSA: '??',
-  MAFE: '??',
-  RIZ: '??',
-  SALADE: '??',
-  BOISSON: '??',
-  DESSERT: '??',
+const categoryCode: Record<string, string> = {
+  TIEP: 'TP',
+  YASSA: 'YS',
+  MAFE: 'MF',
+  RIZ: 'RZ',
+  SALADE: 'SL',
+  BOISSON: 'BS',
+  DESSERT: 'DS',
 }
 
 const estimatedDeliveryText = (index: number) => {
@@ -294,7 +294,7 @@ export default function ClientDashboard() {
               className="rounded-full"
               onClick={() => router.push('/restaurants')}
             >
-              {(categoryEmoji[category.name.toUpperCase()] || '???') + ' '}
+              {(categoryCode[category.name.toUpperCase()] || 'CT') + ' '}
               {category.name}
             </Button>
           ))}
@@ -316,7 +316,7 @@ export default function ClientDashboard() {
               <CardContent className="py-4">
                 <p className="font-bold text-slate-900">{restaurant.name}</p>
                 <p className="text-sm text-slate-600">
-                  ? {Number(restaurant.averageRating || 0).toFixed(1)} ({restaurant.reviewCount} avis) • ?? {estimatedDeliveryText(index)} • {restaurant.cuisineType}
+                  Note {Number(restaurant.averageRating || 0).toFixed(1)} ({restaurant.reviewCount} avis) â€¢ Livraison {estimatedDeliveryText(index)} â€¢ {restaurant.cuisineType}
                 </p>
                 <p className="text-sm text-slate-600">
                   A partir de {restaurant.startingPrice !== null ? `${restaurant.startingPrice.toFixed(2)} EUR` : 'N/A'}
@@ -353,7 +353,7 @@ export default function ClientDashboard() {
               <CardContent className="py-4">
                 <p className="font-bold text-slate-900">{restaurant.name}</p>
                 <p className="text-sm text-slate-600">
-                  Temps estime: {estimatedDeliveryText(Math.max(index - 1, 0))} • {restaurant.city}
+                  Temps estime: {estimatedDeliveryText(Math.max(index - 1, 0))} â€¢ {restaurant.city}
                 </p>
               </CardContent>
             </Card>

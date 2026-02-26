@@ -50,10 +50,17 @@ export default function RestaurantsSearchPage() {
 
   const cuisineTypeOptions = [
     'Africain',
+<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
     'Caribeen',
     'Antillais',
     'Creole',
     'Senegalais',
+=======
+    'CaribÃ©en',
+    'Antillais',
+    'CrÃ©ole',
+    'SÃ©nÃ©galais',
+>>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
     'Ivoirien',
     'Camerounais',
     'Togolais',
@@ -143,7 +150,11 @@ export default function RestaurantsSearchPage() {
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
+<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
             <h1 className="text-2xl font-bold">DELICES AFRO-CARAIBE</h1>
+=======
+            <h1 className="text-2xl font-bold">DÃ‰LICES AFRO-CARAÃBE</h1>
+>>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
             <ShoppingCartButton />
           </div>
           
@@ -195,7 +206,11 @@ export default function RestaurantsSearchPage() {
 
                   <div>
                     <Label className="text-base font-semibold mb-4 block">
+<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
                       Prix moyen: {filters.priceRange[0]} EUR - {filters.priceRange[1]} EUR
+=======
+                      Prix moyen: {filters.priceRange[0]}â‚¬ - {filters.priceRange[1]}â‚¬
+>>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
                     </Label>
                     <Slider
                       min={0}
@@ -240,7 +255,11 @@ export default function RestaurantsSearchPage() {
                   </div>
 
                   <Button onClick={resetFilters} variant="outline" className="w-full">
+<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
                     Reinitialiser les filtres
+=======
+                    RÃ©initialiser les filtres
+>>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
                   </Button>
                 </div>
               </SheetContent>
@@ -252,7 +271,11 @@ export default function RestaurantsSearchPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6 flex justify-between items-center">
           <p className="text-muted-foreground">
+<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
             {filteredRestaurants.length} restaurant{filteredRestaurants.length > 1 ? 's' : ''} trouve{filteredRestaurants.length > 1 ? 's' : ''}
+=======
+            {filteredRestaurants.length} restaurant{filteredRestaurants.length > 1 ? 's' : ''} trouvÃ©{filteredRestaurants.length > 1 ? 's' : ''}
+>>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
           </p>
           {filters.cuisineTypes.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -268,10 +291,17 @@ export default function RestaurantsSearchPage() {
         {filteredRestaurants.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">
+<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
               Aucun restaurant ne correspond a vos criteres
             </p>
             <Button onClick={resetFilters} variant="outline" className="mt-4">
               Reinitialiser les filtres
+=======
+              Aucun restaurant ne correspond Ã  vos critÃ¨res
+            </p>
+            <Button onClick={resetFilters} variant="outline" className="mt-4">
+              RÃ©initialiser les filtres
+>>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
             </Button>
           </Card>
         ) : (
