@@ -6,21 +6,35 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { fetchAdminBundle, AdminOverview, fetchAdminTransactions, AdminTransactionsResponse } from '@/lib/admin'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { deliveryAPI } from '@/lib/api'
+
+type WithdrawRequest = {
+  id: string
+  userId: string
+  amount?: number
+  status?: string
+  method?: string
+  accountRef?: string
+  sentAt: string
+}
 
 export default function AdminFinancesPage() {
   const [overview, setOverview] = useState<AdminOverview | null>(null)
   const [transactions, setTransactions] = useState<AdminTransactionsResponse | null>(null)
+  const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequest[]>([])
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const load = async (status?: string) => {
-    const [bundle, tx] = await Promise.all([
+    const [bundle, tx, withdrawRes] = await Promise.all([
       fetchAdminBundle(),
       fetchAdminTransactions(status && status !== 'ALL' ? { status } : undefined),
+      deliveryAPI.get<WithdrawRequest[]>('/deliveries/admin/withdraw-requests'),
     ])
     setOverview(bundle.overview)
     setTransactions(tx)
+    setWithdrawRequests(Array.isArray(withdrawRes.data) ? withdrawRes.data : [])
   }
 
   useEffect(() => {
@@ -70,6 +84,16 @@ export default function AdminFinancesPage() {
     URL.revokeObjectURL(url)
   }
 
+  const updateWithdrawStatus = async (id: string, status: 'APPROVED' | 'REJECTED' | 'PAID') => {
+    try {
+      await deliveryAPI.put(`/deliveries/admin/withdraw-requests/${id}`, { status })
+      await load(statusFilter)
+    } catch (e) {
+      console.error(e)
+      setError('Mise a jour retrait impossible.')
+    }
+  }
+
   if (loading) return <div className="p-6">Chargement...</div>
   if (!overview) return <div className="p-6 text-red-700">{error || 'Donnees indisponibles.'}</div>
 
@@ -114,6 +138,38 @@ export default function AdminFinancesPage() {
             </div>
           ))}
           {transactions && transactions.data.length === 0 && <p className="text-sm text-slate-600">Aucune transaction.</p>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Demandes de retrait livreurs</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {withdrawRequests.length === 0 && <p className="text-sm text-slate-600">Aucune demande.</p>}
+          {withdrawRequests.map((request) => (
+            <div key={request.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <p className="font-semibold">
+                  {(Number(request.amount || 0)).toFixed(2)} EUR - {request.method || 'BANK_TRANSFER'}
+                </p>
+                <p className="text-xs">{request.status || 'PENDING'}</p>
+              </div>
+              <p className="text-slate-600">
+                Livreur: {request.userId} - {new Date(request.sentAt).toLocaleString('fr-FR')}
+              </p>
+              <p className="text-slate-600">Compte: {request.accountRef || '-'}</p>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => updateWithdrawStatus(request.id, 'APPROVED')}>
+                  Approuver
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => updateWithdrawStatus(request.id, 'PAID')}>
+                  Marquer paye
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => updateWithdrawStatus(request.id, 'REJECTED')}>
+                  Rejeter
+                </Button>
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

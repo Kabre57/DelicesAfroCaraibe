@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getOrderSocket } from '@/lib/socket'
+import { getDeliverySocket, getOrderSocket } from '@/lib/socket'
 import { orderAPI } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -41,14 +41,17 @@ export default function ClientOrdersPage() {
 
     fetchOrders()
     const socket = getOrderSocket()
+    const deliverySocket = getDeliverySocket()
     const onUpdate = ({ orderId, status }: { orderId: string; status: string }) => {
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: status as Order['status'] } : o))
       )
     }
     socket.on('order:update', onUpdate)
+    deliverySocket.on('order:update', onUpdate)
     return () => {
       socket.off('order:update', onUpdate)
+      deliverySocket.off('order:update', onUpdate)
     }
   }, [])
 
@@ -59,7 +62,7 @@ export default function ClientOrdersPage() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-orange-100 bg-white/90 p-5 shadow-lg shadow-orange-100/40">
+      <section className="rounded-2xl border border-fuchsia-100 bg-white/90 p-5 shadow-lg shadow-fuchsia-100/40">
         <h1 className="text-2xl font-black text-slate-900">Historique des commandes</h1>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200 px-4 py-3">

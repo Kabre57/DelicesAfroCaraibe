@@ -27,6 +27,28 @@ export async function fetchCourierMetrics() {
   return response.data
 }
 
+export async function requestCourierWithdraw(payload: {
+  amount: number
+  method?: 'BANK_TRANSFER' | 'MOBILE_MONEY'
+  accountRef?: string
+}) {
+  const response = await deliveryAPI.post('/deliveries/livreur/me/withdraw-requests', payload)
+  return response.data
+}
+
+export async function fetchCourierWithdrawRequests() {
+  const response = await deliveryAPI.get('/deliveries/livreur/me/withdraw-requests')
+  return response.data as Array<{
+    id: string
+    amount: number
+    status: string
+    method?: string
+    accountRef?: string
+    sentAt: string
+    notes?: string
+  }>
+}
+
 export async function reportCourierIssue(payload: {
   type: 'SAFETY' | 'CUSTOMER' | 'RESTAURANT' | 'VEHICLE' | 'OTHER'
   message: string

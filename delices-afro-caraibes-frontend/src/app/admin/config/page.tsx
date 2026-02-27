@@ -14,6 +14,10 @@ type AdminConfigState = {
   supportPhone: string
   currency: string
   defaultCommission: string
+  courierBaseFee: string
+  courierVariableRate: string
+  courierPlatformCommissionRate: string
+  courierMinWithdrawalAmount: string
   twoFactorRequired: boolean
   dailyReportEnabled: boolean
 }
@@ -24,6 +28,10 @@ const initialState: AdminConfigState = {
   supportPhone: '+33 1 23 45 67 89',
   currency: 'EUR',
   defaultCommission: '22',
+  courierBaseFee: '1.5',
+  courierVariableRate: '0.12',
+  courierPlatformCommissionRate: '0.02',
+  courierMinWithdrawalAmount: '10',
   twoFactorRequired: true,
   dailyReportEnabled: true,
 }
@@ -43,6 +51,10 @@ export default function AdminConfigPage() {
           supportPhone: data.supportPhone || initialState.supportPhone,
           currency: data.currency || initialState.currency,
           defaultCommission: String(data.defaultCommissionPercent ?? 22),
+          courierBaseFee: String(data.courierBaseFee ?? 1.5),
+          courierVariableRate: String(data.courierVariableRate ?? 0.12),
+          courierPlatformCommissionRate: String(data.courierPlatformCommissionRate ?? 0.02),
+          courierMinWithdrawalAmount: String(data.courierMinWithdrawalAmount ?? 10),
           twoFactorRequired: Boolean(data.twoFactorRequired),
           dailyReportEnabled: Boolean(data.dailyReportEnabled),
         })
@@ -63,6 +75,10 @@ export default function AdminConfigPage() {
         supportPhone: config.supportPhone.trim(),
         currency: config.currency.trim(),
         defaultCommissionPercent: Number(config.defaultCommission) || 22,
+        courierBaseFee: Number(config.courierBaseFee) || 1.5,
+        courierVariableRate: Number(config.courierVariableRate) || 0.12,
+        courierPlatformCommissionRate: Number(config.courierPlatformCommissionRate) || 0.02,
+        courierMinWithdrawalAmount: Number(config.courierMinWithdrawalAmount) || 10,
         twoFactorRequired: config.twoFactorRequired,
         dailyReportEnabled: config.dailyReportEnabled,
       })
@@ -83,6 +99,10 @@ export default function AdminConfigPage() {
         supportPhone: initialState.supportPhone,
         currency: initialState.currency,
         defaultCommissionPercent: Number(initialState.defaultCommission),
+        courierBaseFee: Number(initialState.courierBaseFee),
+        courierVariableRate: Number(initialState.courierVariableRate),
+        courierPlatformCommissionRate: Number(initialState.courierPlatformCommissionRate),
+        courierMinWithdrawalAmount: Number(initialState.courierMinWithdrawalAmount),
         twoFactorRequired: initialState.twoFactorRequired,
         dailyReportEnabled: initialState.dailyReportEnabled,
       })
@@ -127,6 +147,22 @@ export default function AdminConfigPage() {
           <div className="space-y-1">
             <Label htmlFor="defaultCommission">Commission par defaut (%)</Label>
             <Input id="defaultCommission" value={config.defaultCommission} onChange={(e) => setConfig((p) => ({ ...p, defaultCommission: e.target.value }))} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="courierBaseFee">Livreur - base fixe (EUR)</Label>
+            <Input id="courierBaseFee" value={config.courierBaseFee} onChange={(e) => setConfig((p) => ({ ...p, courierBaseFee: e.target.value }))} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="courierVariableRate">Livreur - part variable (ratio)</Label>
+            <Input id="courierVariableRate" value={config.courierVariableRate} onChange={(e) => setConfig((p) => ({ ...p, courierVariableRate: e.target.value }))} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="courierPlatformCommissionRate">Livreur - commission plateforme (ratio)</Label>
+            <Input id="courierPlatformCommissionRate" value={config.courierPlatformCommissionRate} onChange={(e) => setConfig((p) => ({ ...p, courierPlatformCommissionRate: e.target.value }))} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="courierMinWithdrawalAmount">Livreur - retrait minimum (EUR)</Label>
+            <Input id="courierMinWithdrawalAmount" value={config.courierMinWithdrawalAmount} onChange={(e) => setConfig((p) => ({ ...p, courierMinWithdrawalAmount: e.target.value }))} />
           </div>
           <div className="rounded-xl border border-slate-200 p-3">
             <div className="flex items-center justify-between">

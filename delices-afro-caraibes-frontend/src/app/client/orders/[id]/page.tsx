@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { getOrderSocket } from '@/lib/socket'
+import { getDeliverySocket, getOrderSocket } from '@/lib/socket'
 import { orderAPI } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -49,12 +49,15 @@ export default function ClientOrderTrackingPage() {
 
   useEffect(() => {
     const socket = getOrderSocket()
+    const deliverySocket = getDeliverySocket()
     const onUpdate = ({ orderId: updatedId }: { orderId: string; status: string }) => {
       if (updatedId === orderId) fetchOrder()
     }
     socket.on('order:update', onUpdate)
+    deliverySocket.on('order:update', onUpdate)
     return () => {
       socket.off('order:update', onUpdate)
+      deliverySocket.off('order:update', onUpdate)
     }
   }, [fetchOrder, orderId])
 

@@ -14,6 +14,10 @@ export const getAllRestaurants = async (req: Request, res: Response) => {
     const restaurants = await prisma.restaurant.findMany({
       where,
       include: {
+        menuItems: {
+          where: { isAvailable: true },
+          select: { price: true },
+        },
         restaurateur: {
           include: {
             user: {

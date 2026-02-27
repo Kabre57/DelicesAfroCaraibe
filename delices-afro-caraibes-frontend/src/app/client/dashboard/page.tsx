@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { notificationAPI, orderAPI, restaurantAPI, userAPI } from '@/lib/api'
 import { ShoppingCartButton } from '@/components/cart/ShoppingCartButton'
+import { getDeliverySocket, getOrderSocket } from '@/lib/socket'
 
 type ClientSummaryResponse = {
   totalOrders: number
@@ -44,6 +45,15 @@ type DiscoveryHomeResponse = {
     averageRating: number
     reviewCount: number
     startingPrice: number | null
+  }[]
+  popularDishes: {
+    id: string
+    name: string
+    category: string
+    imageUrl?: string | null
+    price: number
+    orderCount: number
+    restaurant: { id: string; name: string; city: string }
   }[]
   newcomers: {
     id: string
@@ -96,6 +106,13 @@ const initialsFrom = (text: string) =>
     .map((x) => x[0]?.toUpperCase() || '')
     .join('')
 
+const resolveImage = (url?: string | null) => {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const normalized = url.startsWith('/') ? url : `/${url}`
+  return `http://localhost:3110${normalized}`
+}
+
 export default function ClientDashboard() {
   const router = useRouter()
   const [summary, setSummary] = useState<ClientSummaryResponse | null>(null)
@@ -104,6 +121,7 @@ export default function ClientDashboard() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [unreadOffers, setUnreadOffers] = useState(0)
   const [search, setSearch] = useState('')
+  const [currentUserId, setCurrentUserId] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -119,6 +137,7 @@ export default function ClientDashboard() {
           router.push('/')
           return
         }
+        setCurrentUserId(parsedUser.id)
 
         const [summaryRes, discoveryRes, userRes] = await Promise.all([
           orderAPI.get<ClientSummaryResponse>('/orders/client/me/summary'),
@@ -157,7 +176,7 @@ export default function ClientDashboard() {
 
   const filtered = useMemo(() => {
     if (!discovery) {
-      return { categories: [], popular: [], newcomers: [] }
+      return { categories: [], popular: [], popularDishes: [], newcomers: [] }
     }
     const q = search.trim().toLowerCase()
     if (!q) return discovery
@@ -176,6 +195,40 @@ export default function ClientDashboard() {
 
   const fastDelivery = useMemo(() => filtered.popular.slice(0, 3), [filtered.popular])
   const partners = useMemo(() => filtered.popular.slice(0, 8), [filtered.popular])
+  const popularDishes = useMemo(() => filtered.popularDishes?.slice(0, 8) || [], [filtered])
+
+  useEffect(() => {
+    if (!currentUserId) return
+
+    const refreshClientRealtimeData = async () => {
+      try {
+        const [summaryRes, notifRes] = await Promise.all([
+          orderAPI.get<ClientSummaryResponse>('/orders/client/me/summary'),
+          notificationAPI.get<NotificationItem[]>(`/notifications/user/${currentUserId}`),
+        ])
+        setSummary(summaryRes.data)
+        const rows = Array.isArray(notifRes.data) ? notifRes.data : []
+        setNotifications(rows.slice(0, 6))
+        setUnreadOffers(rows.filter((n) => !n.isRead).length)
+      } catch (error) {
+        console.error('Realtime refresh error:', error)
+      }
+    }
+
+    const orderSocket = getOrderSocket()
+    const deliverySocket = getDeliverySocket()
+    const onOrderUpdate = () => {
+      refreshClientRealtimeData()
+    }
+
+    orderSocket.on('order:update', onOrderUpdate)
+    deliverySocket.on('order:update', onOrderUpdate)
+
+    return () => {
+      orderSocket.off('order:update', onOrderUpdate)
+      deliverySocket.off('order:update', onOrderUpdate)
+    }
+  }, [currentUserId])
 
   if (loading) return <div className="flex items-center justify-center py-20">Chargement...</div>
   if (!summary || !discovery) return <div className="py-10 text-center text-slate-600">Donnees indisponibles.</div>
@@ -186,7 +239,11 @@ export default function ClientDashboard() {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <Badge className="rounded-full bg-emerald-600">Statut: Connecte</Badge>
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-2 rounded-full border-fuchsia-200 text-fuchsia-700 hover:bg-fuchsia-50">
+            <Button
+              variant="outline"
+              className="gap-2 rounded-full border-fuchsia-200 text-fuchsia-700 hover:bg-fuchsia-50"
+              onClick={() => router.push('/client/notifications')}
+            >
               <Bell className="h-4 w-4" />
               Notifications
               <Badge className="bg-fuchsia-600 text-white">{unreadOffers}</Badge>
@@ -269,7 +326,11 @@ export default function ClientDashboard() {
             >
               <div className="h-24 w-24 overflow-hidden rounded-full border border-fuchsia-100 bg-fuchsia-50 sm:h-28 sm:w-28">
                 {partner.imageUrl ? (
-                  <img src={partner.imageUrl} alt={partner.name} className="h-full w-full object-cover" />
+                  <img
+                    src={resolveImage(partner.imageUrl)}
+                    alt={partner.name}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-xl font-black text-fuchsia-700">
                     {initialsFrom(partner.name)}
@@ -286,18 +347,68 @@ export default function ClientDashboard() {
 
       <section className="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-xl shadow-slate-200/50">
         <h2 className="mb-4 text-2xl font-black text-slate-900">Categories</h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {filtered.categories.map((category) => (
-            <Button
+            <button
               key={category.name}
-              variant="outline"
-              className="rounded-full"
               onClick={() => router.push('/restaurants')}
+              className="rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:shadow"
             >
-              {(categoryCode[category.name.toUpperCase()] || 'CT') + ' '}
-              {category.name}
-            </Button>
+              <div className="mb-2 h-20 w-full overflow-hidden rounded-xl bg-slate-100">
+                {category.imageUrl ? (
+                  <img
+                    src={resolveImage(category.imageUrl)}
+                    alt={category.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-sm font-black text-fuchsia-700">
+                    {(categoryCode[category.name.toUpperCase()] || 'CT') + ' '}
+                  </div>
+                )}
+              </div>
+              <p className="text-sm font-semibold text-slate-900">{category.name}</p>
+              <p className="text-xs text-slate-500">{category.restaurantCount} restaurants</p>
+            </button>
           ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-xl shadow-slate-200/50">
+        <h2 className="mb-4 text-2xl font-black text-slate-900">Plats populaires</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {popularDishes.map((dish) => (
+            <button
+              key={dish.id}
+              onClick={() => router.push(`/restaurants/${dish.restaurant.id}`)}
+              className="overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:shadow"
+            >
+              <div className="h-32 w-full overflow-hidden bg-slate-100">
+                {dish.imageUrl ? (
+                  <img
+                    src={resolveImage(dish.imageUrl)}
+                    alt={dish.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-sm font-black text-fuchsia-700">
+                    {initialsFrom(dish.name)}
+                  </div>
+                )}
+              </div>
+              <div className="p-3">
+                <p className="line-clamp-1 font-semibold text-slate-900">{dish.name}</p>
+                <p className="line-clamp-1 text-sm text-slate-500">{dish.restaurant.name}</p>
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="font-bold text-fuchsia-700">{dish.price.toFixed(2)} EUR</span>
+                  <span className="text-slate-500">{dish.orderCount} cmd</span>
+                </div>
+              </div>
+            </button>
+          ))}
+          {popularDishes.length === 0 && (
+            <p className="text-sm text-slate-500">Aucun plat populaire pour le moment.</p>
+          )}
         </div>
       </section>
 

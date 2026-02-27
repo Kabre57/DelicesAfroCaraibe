@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
-import { CircleUserRound, Heart, House, LogOut, PackageOpen, Search } from 'lucide-react'
+import { Bell, CircleUserRound, Heart, House, LogOut, PackageOpen, Search } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,6 +26,7 @@ const items = [
   { href: '/client/dashboard', label: 'Accueil', icon: House },
   { href: '/restaurants', label: 'Recherche', icon: Search },
   { href: '/client/orders', label: 'Commandes', icon: PackageOpen },
+  { href: '/client/notifications', label: 'Notifications', icon: Bell },
   { href: '/client/favorites', label: 'Favoris', icon: Heart },
   { href: '/client/profile', label: 'Moi', icon: CircleUserRound },
 ] as const

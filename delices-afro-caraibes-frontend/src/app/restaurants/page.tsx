@@ -1,8 +1,8 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, SlidersHorizontal, Star, Clock } from 'lucide-react'
+import { ArrowLeft, Search, SlidersHorizontal, Star, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,45 +33,57 @@ interface Filters {
   sortBy: string
 }
 
+type RestaurantWithStats = Restaurant & {
+  menuItems?: { price: number }[]
+  averagePrice?: number
+}
+
 export default function RestaurantsSearchPage() {
   const router = useRouter()
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
-  const [filteredRestaurants, setFilteredRestaurants] = useState<Restaurant[]>([])
+  const [restaurants, setRestaurants] = useState<RestaurantWithStats[]>([])
+  const [filteredRestaurants, setFilteredRestaurants] = useState<RestaurantWithStats[]>([])
   const [brokenImageIds, setBrokenImageIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [priceBounds, setPriceBounds] = useState<[number, number]>([0, 100])
   const [filters, setFilters] = useState<Filters>({
     search: '',
     cuisineTypes: [],
-    priceRange: [0, 50],
+    priceRange: [0, 100],
     rating: 0,
     openNow: false,
     sortBy: 'rating'
   })
+  const cuisineTypeOptions = Array.from(new Set(restaurants.map((r) => r.cuisineType))).sort((a, b) =>
+    a.localeCompare(b)
+  )
 
-  const cuisineTypeOptions = [
-    'Africain',
-<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
-    'Caribeen',
-    'Antillais',
-    'Creole',
-    'Senegalais',
-=======
-    'CaribÃ©en',
-    'Antillais',
-    'CrÃ©ole',
-    'SÃ©nÃ©galais',
->>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
-    'Ivoirien',
-    'Camerounais',
-    'Togolais',
-  ]
+  const resolveImage = (url?: string) => {
+    if (!url) return ''
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
+    const normalized = url.startsWith('/') ? url : `/${url}`
+    return `http://localhost:3110${normalized}`
+  }
 
   useEffect(() => {
     const fetchRestaurants = async () => {
       try {
         const response = await restaurantAPI.get('/restaurants')
-        setRestaurants(response.data)
-        setFilteredRestaurants(response.data)
+        const rows: RestaurantWithStats[] = Array.isArray(response.data)
+          ? response.data.map((r: RestaurantWithStats) => {
+              const prices = Array.isArray(r.menuItems) ? r.menuItems.map((x) => Number(x.price || 0)) : []
+              const averagePrice =
+                prices.length === 0 ? 0 : prices.reduce((sum, p) => sum + p, 0) / prices.length
+              return { ...r, averagePrice: Number(averagePrice.toFixed(2)) }
+            })
+          : []
+        setRestaurants(rows)
+        setFilteredRestaurants(rows)
+        const avgPrices = rows.map((r) => Number(r.averagePrice || 0)).filter((v) => v > 0)
+        const min = avgPrices.length ? Math.floor(Math.min(...avgPrices)) : 0
+        const maxRaw = avgPrices.length ? Math.ceil(Math.max(...avgPrices)) : 100
+        const max = Math.max(min + 10, maxRaw)
+        setPriceBounds([min, max])
+        setFilters((prev) => ({ ...prev, priceRange: [min, max] }))
       } catch (error) {
         console.error('Error fetching restaurants:', error)
       } finally {
@@ -97,8 +109,14 @@ export default function RestaurantsSearchPage() {
       result = result.filter(r => filters.cuisineTypes.includes(r.cuisineType))
     }
 
+    result = result.filter((r) => {
+      const avg = Number(r.averagePrice || 0)
+      if (avg === 0) return true
+      return avg >= filters.priceRange[0] && avg <= filters.priceRange[1]
+    })
+
     if (filters.openNow) {
-      result = result.filter(r => r.isOpen)
+      result = result.filter(r => (r.isOpen ?? r.isActive))
     }
 
     switch (filters.sortBy) {
@@ -106,8 +124,10 @@ export default function RestaurantsSearchPage() {
         result.sort((a, b) => (b.rating || 0) - (a.rating || 0))
         break
       case 'distance':
+        result.sort((a, b) => a.city.localeCompare(b.city))
         break
       case 'deliveryTime':
+        result.sort((a, b) => a.name.localeCompare(b.name))
         break
       case 'name':
         result.sort((a, b) => a.name.localeCompare(b.name))
@@ -130,7 +150,7 @@ export default function RestaurantsSearchPage() {
     setFilters({
       search: '',
       cuisineTypes: [],
-      priceRange: [0, 50],
+      priceRange: [priceBounds[0], priceBounds[1]],
       rating: 0,
       openNow: false,
       sortBy: 'rating'
@@ -150,11 +170,12 @@ export default function RestaurantsSearchPage() {
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
-<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
-            <h1 className="text-2xl font-bold">DELICES AFRO-CARAIBE</h1>
-=======
-            <h1 className="text-2xl font-bold">DÃ‰LICES AFRO-CARAÃBE</h1>
->>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={() => router.push('/client/dashboard')}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="text-2xl font-bold">DELICES AFRO-CARAIBE</h1>
+            </div>
             <ShoppingCartButton />
           </div>
           
@@ -206,16 +227,12 @@ export default function RestaurantsSearchPage() {
 
                   <div>
                     <Label className="text-base font-semibold mb-4 block">
-<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
                       Prix moyen: {filters.priceRange[0]} EUR - {filters.priceRange[1]} EUR
-=======
-                      Prix moyen: {filters.priceRange[0]}â‚¬ - {filters.priceRange[1]}â‚¬
->>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
                     </Label>
                     <Slider
-                      min={0}
-                      max={50}
-                      step={5}
+                      min={priceBounds[0]}
+                      max={priceBounds[1]}
+                      step={1}
                       value={filters.priceRange}
                       onValueChange={(value) => setFilters(prev => ({ ...prev, priceRange: value }))}
                       className="mt-2"
@@ -255,11 +272,7 @@ export default function RestaurantsSearchPage() {
                   </div>
 
                   <Button onClick={resetFilters} variant="outline" className="w-full">
-<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
                     Reinitialiser les filtres
-=======
-                    RÃ©initialiser les filtres
->>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
                   </Button>
                 </div>
               </SheetContent>
@@ -271,11 +284,7 @@ export default function RestaurantsSearchPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6 flex justify-between items-center">
           <p className="text-muted-foreground">
-<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
             {filteredRestaurants.length} restaurant{filteredRestaurants.length > 1 ? 's' : ''} trouve{filteredRestaurants.length > 1 ? 's' : ''}
-=======
-            {filteredRestaurants.length} restaurant{filteredRestaurants.length > 1 ? 's' : ''} trouvÃ©{filteredRestaurants.length > 1 ? 's' : ''}
->>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
           </p>
           {filters.cuisineTypes.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -291,17 +300,10 @@ export default function RestaurantsSearchPage() {
         {filteredRestaurants.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">
-<<<<<<< HEAD:delices-afro-caraibes-frontend/src/app/restaurants/page.tsx
               Aucun restaurant ne correspond a vos criteres
             </p>
             <Button onClick={resetFilters} variant="outline" className="mt-4">
               Reinitialiser les filtres
-=======
-              Aucun restaurant ne correspond Ã  vos critÃ¨res
-            </p>
-            <Button onClick={resetFilters} variant="outline" className="mt-4">
-              RÃ©initialiser les filtres
->>>>>>> 12a3b4bbbba165b93be40e8b5063089f718ff32c:frontend/src/app/restaurants/page.tsx
             </Button>
           </Card>
         ) : (
@@ -315,7 +317,7 @@ export default function RestaurantsSearchPage() {
                 <div className="relative h-48 bg-gray-200 overflow-hidden">
                   {restaurant.imageUrl && !brokenImageIds.has(restaurant.id) ? (
                     <img
-                      src={restaurant.imageUrl}
+                      src={resolveImage(restaurant.imageUrl)}
                       alt={restaurant.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       onError={() =>

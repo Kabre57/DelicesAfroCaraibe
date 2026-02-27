@@ -14,6 +14,7 @@ async function sendNotification(payload: {
   email?: string
 }) {
   try {
+    if (!payload.userId) return
     await fetch(NOTIF_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -128,18 +129,18 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response) => {
     })
     await sendNotification({
       userId: req.user.userId,
-      title: 'Commande passée',
+      title: 'Commande passee',
       message: `Votre commande ${order.id.slice(0, 8)} est en attente de confirmation.`,
       email: clientUser?.email,
     })
     await sendNotification({
       userId: resto?.restaurateur.userId || '',
       title: 'Nouvelle commande',
-      message: `Nouvelle commande à préparer (${order.id.slice(0, 8)}).`,
+      message: `Nouvelle commande a preparer (${order.id.slice(0, 8)}).`,
       email: resto?.restaurateur.user?.email,
     })
-    await sendSMS(clientUser?.phone, 'Commande reçue, en attente de confirmation.')
-    await sendSMS(resto?.restaurateur.user?.phone, 'Nouvelle commande à préparer.')
+    await sendSMS(clientUser?.phone, 'Commande recue, en attente de confirmation.')
+    await sendSMS(resto?.restaurateur.user?.phone, 'Nouvelle commande a preparer.')
 
     const io = req.app.get('io') as Server | undefined
     io?.emit('order:update', { orderId: order.id, status: order.status })
@@ -288,13 +289,26 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
       include: { user: true },
     })
     const clientUser = clientProfile?.user
+    const clientMessageByStatus: Record<string, string> = {
+      PENDING: 'Commande en attente de confirmation.',
+      CONFIRMED: 'Commande confirmee par le restaurant.',
+      PREPARING: 'Le restaurant prepare votre commande.',
+      READY: 'Votre commande est prete. Un livreur va la recuperer.',
+      IN_DELIVERY: 'Votre commande est en livraison.',
+      DELIVERED: 'Votre commande a ete livree.',
+      CANCELLED: 'Votre commande a ete annulee.',
+    }
+
     await sendNotification({
       userId: clientUser?.id || '',
-      title: 'Statut commande mis à jour',
-      message: `Commande ${order.id.slice(0, 8)} : ${status}`,
+      title: 'Statut commande mis a jour',
+      message: `Commande ${order.id.slice(0, 8)} : ${clientMessageByStatus[status] || status}`,
       email: clientUser?.email,
     })
-    await sendSMS(clientUser?.phone, `Commande ${order.id.slice(0, 8)} : ${status}`)
+    await sendSMS(
+      clientUser?.phone,
+      `Commande ${order.id.slice(0, 8)} : ${clientMessageByStatus[status] || status}`
+    )
 
     const io = req.app.get('io') as Server | undefined
     io?.emit('order:update', { orderId: order.id, status })
@@ -352,6 +366,10 @@ const ADMIN_CONFIG_DEFAULTS = {
   supportPhone: '+33 1 23 45 67 89',
   currency: 'EUR',
   defaultCommissionPercent: 22,
+  courierBaseFee: 1.5,
+  courierVariableRate: 0.12,
+  courierPlatformCommissionRate: 0.02,
+  courierMinWithdrawalAmount: 10,
   twoFactorRequired: true,
   dailyReportEnabled: true,
   homeLocationLabel: '',

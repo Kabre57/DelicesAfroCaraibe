@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { useCartStore } from '@/lib/cart-store'
 import { Separator } from '@/components/ui/separator'
 import { ShoppingCartButton } from '@/components/cart/ShoppingCartButton'
+import { getDeliverySocket, getOrderSocket } from '@/lib/socket'
 
 export default function RestaurantDetailPage() {
   const params = useParams()
@@ -20,6 +21,13 @@ export default function RestaurantDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { addItem, getItemCount } = useCartStore()
+
+  const resolveImage = (url?: string) => {
+    if (!url) return ''
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
+    const normalized = url.startsWith('/') ? url : `/${url}`
+    return `http://localhost:3110${normalized}`
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,6 +46,33 @@ export default function RestaurantDetailPage() {
       }
     }
     if (restaurantId) fetchData()
+  }, [restaurantId])
+
+  useEffect(() => {
+    if (!restaurantId) return
+    const orderSocket = getOrderSocket()
+    const deliverySocket = getDeliverySocket()
+    const refresh = () => {
+      const fetchData = async () => {
+        try {
+          const [r, m] = await Promise.all([
+            restaurantAPI.get(`/restaurants/${restaurantId}`),
+            restaurantAPI.get(`/restaurants/${restaurantId}/menu`),
+          ])
+          setRestaurant(r.data)
+          setMenu(m.data)
+        } catch (e) {
+          console.error(e)
+        }
+      }
+      fetchData()
+    }
+    orderSocket.on('order:update', refresh)
+    deliverySocket.on('order:update', refresh)
+    return () => {
+      orderSocket.off('order:update', refresh)
+      deliverySocket.off('order:update', refresh)
+    }
   }, [restaurantId])
 
   const categories = useMemo(() => {
@@ -119,6 +154,19 @@ export default function RestaurantDetailPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {menu.map((item) => (
               <Card key={item.id} className="flex flex-col">
+                <div className="h-40 w-full overflow-hidden bg-slate-100">
+                  {item.imageUrl ? (
+                    <img
+                      src={resolveImage(item.imageUrl)}
+                      alt={item.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm font-black text-fuchsia-700">
+                      {item.name.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
                 <CardHeader>
                   <CardTitle className="flex items-start justify-between gap-2">
                     <span>{item.name}</span>

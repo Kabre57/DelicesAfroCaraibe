@@ -79,6 +79,10 @@ export type AdminConfig = {
   supportPhone: string
   currency: string
   defaultCommissionPercent: number
+  courierBaseFee: number
+  courierVariableRate: number
+  courierPlatformCommissionRate: number
+  courierMinWithdrawalAmount: number
   twoFactorRequired: boolean
   dailyReportEnabled: boolean
 }

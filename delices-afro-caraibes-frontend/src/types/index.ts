@@ -160,10 +160,14 @@ export interface CourierMetrics {
     today: number
     week: number
     total: number
+    availableBalance: number
+    pendingWithdrawAmount: number
+    paidWithdrawAmount: number
     formula: {
       baseFee: number
       variableRate: number
       platformCommissionRate: number
+      minWithdrawalAmount: number
     }
   }
   stats: {
@@ -173,6 +177,16 @@ export interface CourierMetrics {
     averageWaitMinutes: number
   }
   payouts: CourierPayout[]
+  withdrawRequests: {
+    id: string
+    title: string
+    sentAt: string
+    amount: number
+    status: string
+    method: string
+    accountRef: string
+    notes?: string
+  }[]
 }
 
 export interface Review {

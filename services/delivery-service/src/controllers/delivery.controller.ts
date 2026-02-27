@@ -7,6 +7,60 @@ const NOTIF_URL =
   process.env.NOTIFICATION_SERVICE_URL || 'http://notification-service:3007/api/notifications/send'
 const SMS_URL = process.env.SMS_SERVICE_URL || 'http://sms-service:3012/sms/send'
 
+const COURIER_RULE_DEFAULTS = {
+  baseFee: 1.5,
+  variableRate: 0.12,
+  platformCommissionRate: 0.02,
+  minWithdrawalAmount: 10,
+}
+
+type CourierRules = typeof COURIER_RULE_DEFAULTS
+
+const safeJsonParse = <T>(value: string, fallback: T): T => {
+  try {
+    return JSON.parse(value) as T
+  } catch {
+    return fallback
+  }
+}
+
+const getCourierRulesFromAdminConfig = async (): Promise<CourierRules> => {
+  const configRows = await prisma.notification.findMany({
+    where: {
+      type: 'ADMIN_CONFIG',
+      title: {
+        in: [
+          'courierBaseFee',
+          'courierVariableRate',
+          'courierPlatformCommissionRate',
+          'courierMinWithdrawalAmount',
+        ],
+      },
+    },
+    orderBy: { sentAt: 'desc' },
+    take: 100,
+  })
+
+  const latestByKey = new Map<string, number>()
+  for (const row of configRows) {
+    if (latestByKey.has(row.title)) continue
+    const parsed = safeJsonParse<{ value?: unknown }>(row.message, {})
+    const raw = Number(parsed.value)
+    if (!Number.isNaN(raw)) {
+      latestByKey.set(row.title, raw)
+    }
+  }
+
+  return {
+    baseFee: latestByKey.get('courierBaseFee') ?? COURIER_RULE_DEFAULTS.baseFee,
+    variableRate: latestByKey.get('courierVariableRate') ?? COURIER_RULE_DEFAULTS.variableRate,
+    platformCommissionRate:
+      latestByKey.get('courierPlatformCommissionRate') ?? COURIER_RULE_DEFAULTS.platformCommissionRate,
+    minWithdrawalAmount:
+      latestByKey.get('courierMinWithdrawalAmount') ?? COURIER_RULE_DEFAULTS.minWithdrawalAmount,
+  }
+}
+
 async function sendNotification(payload: {
   userId: string
   type?: string
@@ -15,6 +69,7 @@ async function sendNotification(payload: {
   email?: string
 }) {
   try {
+    if (!payload.userId) return
     const body = {
       ...payload,
       type: payload.type || 'SYSTEM',
@@ -282,9 +337,10 @@ export const getMyCourierMetrics = async (req: AuthenticatedRequest, res: Respon
     weekStart.setDate(now.getDate() - now.getDay())
     weekStart.setHours(0, 0, 0, 0)
 
-    const baseFee = Number(process.env.COURIER_BASE_FEE || 1.5)
-    const variableRate = Number(process.env.COURIER_VARIABLE_RATE || 0.12)
-    const platformCommissionRate = Number(process.env.COURIER_PLATFORM_COMMISSION_RATE || 0.02)
+    const rules = await getCourierRulesFromAdminConfig()
+    const baseFee = Number(rules.baseFee)
+    const variableRate = Number(rules.variableRate)
+    const platformCommissionRate = Number(rules.platformCommissionRate)
 
     const incomeFor = (delivery: (typeof delivered)[number]) => {
       const amount = delivery.order?.totalAmount || 0
@@ -301,6 +357,34 @@ export const getMyCourierMetrics = async (req: AuthenticatedRequest, res: Respon
     const todayEarnings = sumNet(deliveredToday)
     const weekEarnings = sumNet(deliveredWeek)
     const totalEarnings = sumNet(delivered)
+
+    const withdrawRows = await prisma.notification.findMany({
+      where: {
+        type: 'COURIER_WITHDRAW_REQUEST',
+        userId: req.user.userId,
+      },
+      orderBy: { sentAt: 'desc' },
+      take: 100,
+    })
+    const withdrawRequests = withdrawRows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      sentAt: row.sentAt,
+      ...safeJsonParse<{
+        amount?: number
+        status?: string
+        method?: string
+        accountRef?: string
+        notes?: string
+      }>(row.message, {}),
+    }))
+    const pendingWithdrawAmount = withdrawRequests
+      .filter((r) => (r.status || 'PENDING') === 'PENDING')
+      .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+    const paidWithdrawAmount = withdrawRequests
+      .filter((r) => (r.status || '') === 'PAID')
+      .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+    const availableBalance = Math.max(0, totalEarnings - pendingWithdrawAmount - paidWithdrawAmount)
 
     const totalOffers = deliveries.length
     const acceptedDeliveries = deliveries.filter((d) => d.status !== 'WAITING').length
@@ -331,10 +415,14 @@ export const getMyCourierMetrics = async (req: AuthenticatedRequest, res: Respon
         today: Number(todayEarnings.toFixed(2)),
         week: Number(weekEarnings.toFixed(2)),
         total: Number(totalEarnings.toFixed(2)),
+        availableBalance: Number(availableBalance.toFixed(2)),
+        pendingWithdrawAmount: Number(pendingWithdrawAmount.toFixed(2)),
+        paidWithdrawAmount: Number(paidWithdrawAmount.toFixed(2)),
         formula: {
           baseFee,
           variableRate,
           platformCommissionRate,
+          minWithdrawalAmount: Number(rules.minWithdrawalAmount),
         },
       },
       stats: {
@@ -344,6 +432,16 @@ export const getMyCourierMetrics = async (req: AuthenticatedRequest, res: Respon
         averageWaitMinutes,
       },
       payouts: lastPayouts,
+      withdrawRequests: withdrawRequests.map((r) => ({
+        id: r.id,
+        title: r.title,
+        sentAt: r.sentAt,
+        amount: Number(r.amount || 0),
+        status: r.status || 'PENDING',
+        method: r.method || 'BANK_TRANSFER',
+        accountRef: r.accountRef || '',
+        notes: r.notes || '',
+      })),
     })
   } catch (error) {
     console.error('Get courier metrics error:', error)
@@ -387,6 +485,180 @@ export const reportDeliveryIssue = async (req: AuthenticatedRequest, res: Respon
     })
   } catch (error) {
     console.error('Report delivery issue error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const createWithdrawRequest = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' })
+
+    const livreur = await prisma.livreur.findUnique({ where: { userId: req.user.userId } })
+    if (!livreur) return res.status(400).json({ error: 'Livreur profile not found' })
+    if (!livreur.isApproved) return res.status(403).json({ error: 'Compte livreur non valide par admin' })
+
+    const { amount, method, accountRef } = req.body || {}
+    const requestedAmount = Number(amount)
+    if (Number.isNaN(requestedAmount) || requestedAmount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' })
+    }
+
+    const rules = await getCourierRulesFromAdminConfig()
+    if (requestedAmount < rules.minWithdrawalAmount) {
+      return res
+        .status(400)
+        .json({ error: `Minimum withdrawal amount is ${Number(rules.minWithdrawalAmount).toFixed(2)} EUR` })
+    }
+
+    const deliveries = await prisma.delivery.findMany({
+      where: { livreurId: livreur.id, status: 'DELIVERED' },
+      include: { order: true },
+    })
+
+    const totalNet = deliveries.reduce((sum, delivery) => {
+      const orderTotal = delivery.order?.totalAmount || 0
+      const gross = Number(rules.baseFee) + orderTotal * Number(rules.variableRate)
+      const commission = gross * Number(rules.platformCommissionRate)
+      return sum + Math.max(0, gross - commission)
+    }, 0)
+
+    const existing = await prisma.notification.findMany({
+      where: {
+        type: 'COURIER_WITHDRAW_REQUEST',
+        userId: req.user.userId,
+      },
+      orderBy: { sentAt: 'desc' },
+      take: 100,
+    })
+    const parsed = existing.map((row) =>
+      safeJsonParse<{ amount?: number; status?: string }>(row.message, {})
+    )
+    const pendingAmount = parsed
+      .filter((item) => (item.status || 'PENDING') === 'PENDING')
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    const paidAmount = parsed
+      .filter((item) => (item.status || '') === 'PAID')
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    const availableBalance = Math.max(0, totalNet - pendingAmount - paidAmount)
+
+    if (requestedAmount > availableBalance) {
+      return res.status(400).json({ error: 'Requested amount exceeds available balance' })
+    }
+
+    const request = await prisma.notification.create({
+      data: {
+        userId: req.user.userId,
+        type: 'COURIER_WITHDRAW_REQUEST',
+        title: 'Demande de retrait',
+        message: JSON.stringify({
+          amount: Number(requestedAmount.toFixed(2)),
+          status: 'PENDING',
+          method: method || 'BANK_TRANSFER',
+          accountRef: accountRef || '',
+          requestedAt: new Date().toISOString(),
+        }),
+      },
+    })
+
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN' },
+      select: { id: true, email: true },
+    })
+    await Promise.all(
+      admins.map((admin) =>
+        sendNotification({
+          userId: admin.id,
+          type: 'SYSTEM',
+          title: 'Nouvelle demande de retrait livreur',
+          message: `Livreur ${req.user?.userId} a demande ${requestedAmount.toFixed(2)} EUR.`,
+          email: admin.email,
+        })
+      )
+    )
+
+    return res.status(201).json(request)
+  } catch (error) {
+    console.error('Create withdraw request error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const getWithdrawRequests = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' })
+    const statusFilter = typeof req.query.status === 'string' ? req.query.status : undefined
+
+    const where: any = { type: 'COURIER_WITHDRAW_REQUEST' }
+    if (req.user.role === 'LIVREUR') {
+      where.userId = req.user.userId
+    }
+    const rows = await prisma.notification.findMany({
+      where,
+      orderBy: { sentAt: 'desc' },
+      take: 300,
+    })
+    const mapped = rows
+      .map((row) => ({
+        id: row.id,
+        userId: row.userId,
+        title: row.title,
+        sentAt: row.sentAt,
+        ...safeJsonParse<{
+          amount?: number
+          status?: string
+          method?: string
+          accountRef?: string
+          notes?: string
+          reviewedAt?: string
+        }>(row.message, {}),
+      }))
+      .filter((item) => (statusFilter ? (item.status || 'PENDING') === statusFilter : true))
+    return res.json(mapped)
+  } catch (error) {
+    console.error('Get withdraw requests error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const updateWithdrawRequest = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' })
+    const { id } = req.params
+    const { status, notes } = req.body || {}
+    const allowed = ['PENDING', 'APPROVED', 'REJECTED', 'PAID']
+    if (!status || !allowed.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' })
+    }
+
+    const current = await prisma.notification.findUnique({ where: { id } })
+    if (!current || current.type !== 'COURIER_WITHDRAW_REQUEST') {
+      return res.status(404).json({ error: 'Withdraw request not found' })
+    }
+    const payload = safeJsonParse<Record<string, unknown>>(current.message, {})
+    const updated = await prisma.notification.update({
+      where: { id },
+      data: {
+        isRead: status === 'PAID',
+        message: JSON.stringify({
+          ...payload,
+          status,
+          notes: notes || payload.notes || '',
+          reviewedBy: req.user.userId,
+          reviewedAt: new Date().toISOString(),
+        }),
+      },
+    })
+
+    await sendNotification({
+      userId: current.userId,
+      type: 'SYSTEM',
+      title: 'Mise a jour de votre retrait',
+      message: `Votre demande de retrait est maintenant: ${status}.`,
+    })
+
+    return res.json(updated)
+  } catch (error) {
+    console.error('Update withdraw request error:', error)
     return res.status(500).json({ error: 'Internal server error' })
   }
 }
