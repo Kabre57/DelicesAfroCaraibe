@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -177,6 +175,11 @@ services:
       - "3107:3007"
     environment:
       - DATABASE_URL=postgresql://delices_user:delices_password@postgres:5432/delices_db
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
     depends_on:
       - postgres
     networks:
@@ -200,7 +203,7 @@ services:
       - "3109:3009"
     environment:
       - REDIS_URL=redis://redis:6379
-      - FRONTEND_URL=http://localhost:3100
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3100}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
     depends_on:
       - redis
@@ -216,6 +219,7 @@ services:
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - UPLOAD_PUBLIC_BASE_URL=${UPLOAD_PUBLIC_BASE_URL:-http://localhost:3110}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
     networks:
       - delices_network
@@ -247,23 +251,45 @@ services:
       - delices_network
 
   frontend:
-    build: ./delices-afro-caraibes-frontend
+    build:
+      context: ./delices-afro-caraibes-frontend
+      args:
+        NEXT_PUBLIC_AUTH_API: ${NEXT_PUBLIC_AUTH_API:-http://localhost:3101}
+        NEXT_PUBLIC_USER_API: ${NEXT_PUBLIC_USER_API:-http://localhost:3102}
+        NEXT_PUBLIC_RESTAURANT_API: ${NEXT_PUBLIC_RESTAURANT_API:-http://localhost:3103}
+        NEXT_PUBLIC_ORDER_API: ${NEXT_PUBLIC_ORDER_API:-http://localhost:3104}
+        NEXT_PUBLIC_DELIVERY_API: ${NEXT_PUBLIC_DELIVERY_API:-http://localhost:3105}
+        NEXT_PUBLIC_PAYMENT_API: ${NEXT_PUBLIC_PAYMENT_API:-http://localhost:3106}
+        NEXT_PUBLIC_NOTIFICATION_API: ${NEXT_PUBLIC_NOTIFICATION_API:-http://localhost:3107}
+        NEXT_PUBLIC_GEOLOCATION_API: ${NEXT_PUBLIC_GEOLOCATION_API:-http://localhost:3108}
+        NEXT_PUBLIC_CHAT_API: ${NEXT_PUBLIC_CHAT_API:-http://localhost:3109}
+        NEXT_PUBLIC_UPLOAD_API: ${NEXT_PUBLIC_UPLOAD_API:-http://localhost:3110}
+        NEXT_PUBLIC_STRIPE_API: ${NEXT_PUBLIC_STRIPE_API:-http://localhost:3111}
+        NEXT_PUBLIC_SMS_API: ${NEXT_PUBLIC_SMS_API:-http://localhost:3112}
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-${STRIPE_PUBLISHABLE_KEY}}
+        NEXT_PUBLIC_ORDER_WS: ${NEXT_PUBLIC_ORDER_WS:-http://localhost:3104}
+        NEXT_PUBLIC_DELIVERY_WS: ${NEXT_PUBLIC_DELIVERY_WS:-http://localhost:3105}
+        NEXT_PUBLIC_CHAT_WS: ${NEXT_PUBLIC_CHAT_WS:-http://localhost:3109}
     container_name: delices_frontend
     ports:
       - "3100:3000"
     environment:
-      - NEXT_PUBLIC_AUTH_API=http://localhost:3101
-      - NEXT_PUBLIC_USER_API=http://localhost:3102
-      - NEXT_PUBLIC_RESTAURANT_API=http://localhost:3103
-      - NEXT_PUBLIC_ORDER_API=http://localhost:3104
-      - NEXT_PUBLIC_DELIVERY_API=http://localhost:3105
-      - NEXT_PUBLIC_PAYMENT_API=http://localhost:3106
-      - NEXT_PUBLIC_GEOLOCATION_API=http://localhost:3108
-      - NEXT_PUBLIC_CHAT_API=http://localhost:3109
-      - NEXT_PUBLIC_UPLOAD_API=http://localhost:3110
-      - NEXT_PUBLIC_STRIPE_API=http://localhost:3111
-      - NEXT_PUBLIC_SMS_API=http://localhost:3112
-      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - NEXT_PUBLIC_AUTH_API=${NEXT_PUBLIC_AUTH_API:-http://localhost:3101}
+      - NEXT_PUBLIC_USER_API=${NEXT_PUBLIC_USER_API:-http://localhost:3102}
+      - NEXT_PUBLIC_RESTAURANT_API=${NEXT_PUBLIC_RESTAURANT_API:-http://localhost:3103}
+      - NEXT_PUBLIC_ORDER_API=${NEXT_PUBLIC_ORDER_API:-http://localhost:3104}
+      - NEXT_PUBLIC_DELIVERY_API=${NEXT_PUBLIC_DELIVERY_API:-http://localhost:3105}
+      - NEXT_PUBLIC_PAYMENT_API=${NEXT_PUBLIC_PAYMENT_API:-http://localhost:3106}
+      - NEXT_PUBLIC_NOTIFICATION_API=${NEXT_PUBLIC_NOTIFICATION_API:-http://localhost:3107}
+      - NEXT_PUBLIC_GEOLOCATION_API=${NEXT_PUBLIC_GEOLOCATION_API:-http://localhost:3108}
+      - NEXT_PUBLIC_CHAT_API=${NEXT_PUBLIC_CHAT_API:-http://localhost:3109}
+      - NEXT_PUBLIC_UPLOAD_API=${NEXT_PUBLIC_UPLOAD_API:-http://localhost:3110}
+      - NEXT_PUBLIC_STRIPE_API=${NEXT_PUBLIC_STRIPE_API:-http://localhost:3111}
+      - NEXT_PUBLIC_SMS_API=${NEXT_PUBLIC_SMS_API:-http://localhost:3112}
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-${STRIPE_PUBLISHABLE_KEY}}
+      - NEXT_PUBLIC_ORDER_WS=${NEXT_PUBLIC_ORDER_WS:-http://localhost:3104}
+      - NEXT_PUBLIC_DELIVERY_WS=${NEXT_PUBLIC_DELIVERY_WS:-http://localhost:3105}
+      - NEXT_PUBLIC_CHAT_WS=${NEXT_PUBLIC_CHAT_WS:-http://localhost:3109}
     depends_on:
       - auth-service
       - user-service
