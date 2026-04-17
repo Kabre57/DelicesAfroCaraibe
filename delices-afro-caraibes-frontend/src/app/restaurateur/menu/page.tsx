@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { ImagePlus, Plus, Search, Settings2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { restaurantAPI, uploadAPI } from '@/lib/api'
+import { resolveMediaUrl } from '@/lib/media'
 import { MenuItem, Restaurant } from '@/types'
 
 type DashboardResponse = {
@@ -30,7 +32,7 @@ type MenuForm = {
   description: string
   price: string
   category: string
-  imageUrl: string
+  galleryImageUrls: string[]
 }
 
 type CategoryItem = {
@@ -47,7 +49,31 @@ const initialForm: MenuForm = {
   description: '',
   price: '',
   category: 'Plats',
-  imageUrl: '',
+  galleryImageUrls: [],
+}
+
+const getApiErrorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.error || error?.message || fallback
+
+const normalizePriceInput = (value: string) =>
+  value
+    .replace(',', '.')
+    .replace(/[^0-9.]/g, '')
+    .replace(/(\..*)\./g, '$1')
+
+const toNumericPrice = (value: string) => Number(normalizePriceInput(value))
+
+const getMenuGalleryUrls = (item?: Partial<MenuItem> | null) => {
+  if (!item) return []
+  const gallery = Array.isArray(item.galleryImages)
+    ? item.galleryImages.map((image) => image.imageUrl).filter(Boolean)
+    : []
+
+  if (item.imageUrl && !gallery.includes(item.imageUrl)) {
+    return [item.imageUrl, ...gallery]
+  }
+
+  return gallery
 }
 
 export default function RestaurateurMenuPage() {
@@ -85,6 +111,33 @@ export default function RestaurateurMenuPage() {
       return byCategory && bySearch
     })
   }, [menuItems, categoryFilter, search])
+
+  const selectedRestaurant = useMemo(
+    () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) || null,
+    [restaurants, selectedRestaurantId]
+  )
+
+  const restaurantGallery = useMemo(() => {
+    if (!selectedRestaurant) return []
+
+    const images = selectedRestaurant.galleryImages || []
+    if (selectedRestaurant.imageUrl && !images.some((image) => image.imageUrl === selectedRestaurant.imageUrl)) {
+      return [
+        {
+          id: 'cover-image',
+          restaurantId: selectedRestaurant.id,
+          imageUrl: selectedRestaurant.imageUrl,
+          altText: selectedRestaurant.name,
+          sortOrder: -1,
+          createdAt: selectedRestaurant.createdAt,
+          updatedAt: selectedRestaurant.updatedAt,
+        },
+        ...images,
+      ]
+    }
+
+    return images
+  }, [selectedRestaurant])
 
   const loadRestaurants = async () => {
     const res = await restaurantAPI.get<DashboardResponse>('/restaurants/my/dashboard')
@@ -140,7 +193,7 @@ export default function RestaurateurMenuPage() {
       description: item.description || '',
       price: String(item.price),
       category: item.category || categories[1] || 'Plats',
-      imageUrl: item.imageUrl || '',
+      galleryImageUrls: getMenuGalleryUrls(item),
     })
     setDialogOpen(true)
   }
@@ -154,13 +207,19 @@ export default function RestaurateurMenuPage() {
     return res.data.url
   }
 
-  const onImageSelected = async (file?: File) => {
-    if (!file) return
+  const onImagesSelected = async (files?: FileList | null) => {
+    if (!files?.length) return
     try {
       setUploadingImage(true)
       setError('')
-      const url = await uploadImage(file)
-      setForm((prev) => ({ ...prev, imageUrl: url }))
+      const uploadedUrls: string[] = []
+      for (const file of Array.from(files)) {
+        uploadedUrls.push(await uploadImage(file))
+      }
+      setForm((prev) => ({
+        ...prev,
+        galleryImageUrls: Array.from(new Set([...prev.galleryImageUrls, ...uploadedUrls])),
+      }))
     } catch (e) {
       console.error(e)
       setError("Upload d'image impossible.")
@@ -186,33 +245,46 @@ export default function RestaurateurMenuPage() {
 
   const submitForm = async () => {
     if (!selectedRestaurantId) return
+    const normalizedCategory = form.category.trim()
+    const normalizedPrice = toNumericPrice(form.price)
     const payload = {
       restaurantId: selectedRestaurantId,
       name: form.name.trim(),
       description: form.description.trim(),
-      price: Number(form.price),
-      category: form.category,
-      imageUrl: form.imageUrl || undefined,
+      price: normalizedPrice,
+      category: normalizedCategory,
+      imageUrl: form.galleryImageUrls[0] || undefined,
+      galleryImageUrls: form.galleryImageUrls,
       isAvailable: true,
     }
-    if (!payload.name || !Number.isFinite(payload.price) || !payload.category) {
-      setError('Nom, categorie et prix valides sont obligatoires.')
+    if (!payload.name || !Number.isFinite(payload.price) || payload.price <= 0 || !payload.category) {
+      setError('Nom, categorie et prix valides sont obligatoires. Exemple prix: 24,50')
       return
     }
 
     try {
       setError('')
+      const categoryExists = categoriesCatalog.some(
+        (category) => category.name.trim().toLowerCase() === payload.category.trim().toLowerCase()
+      )
+      if (!categoryExists) {
+        await restaurantAPI.post('/restaurants/categories', {
+          name: payload.category,
+          isActive: true,
+        })
+        await loadCategories()
+      }
       if (form.id) {
         await restaurantAPI.put(`/menu/${form.id}`, payload)
       } else {
-        await restaurantAPI.post('/menu', payload)
+        await restaurantAPI.post(`/restaurants/${selectedRestaurantId}/menu`, payload)
       }
       setDialogOpen(false)
       setForm(initialForm)
       await loadMenu(selectedRestaurantId)
     } catch (e) {
       console.error(e)
-      setError('Enregistrement du plat impossible.')
+      setError(getApiErrorMessage(e, 'Enregistrement du plat impossible.'))
     }
   }
 
@@ -228,19 +300,20 @@ export default function RestaurateurMenuPage() {
 
   const duplicateItem = async (item: MenuItem) => {
     try {
-      await restaurantAPI.post('/menu', {
+      await restaurantAPI.post(`/restaurants/${item.restaurantId}/menu`, {
         restaurantId: item.restaurantId,
         name: `${item.name} (Copie)`,
         description: item.description,
         price: item.price,
         category: item.category,
         imageUrl: item.imageUrl,
+        galleryImageUrls: getMenuGalleryUrls(item),
         isAvailable: item.isAvailable,
       })
       await loadMenu(selectedRestaurantId)
     } catch (e) {
       console.error(e)
-      setError('Duplication impossible.')
+      setError(getApiErrorMessage(e, 'Duplication impossible.'))
     }
   }
 
@@ -315,7 +388,12 @@ export default function RestaurateurMenuPage() {
     <div className="space-y-5">
       <section className="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-black text-slate-900">Gestion du menu</h1>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900">Gestion du menu</h1>
+            <p className="text-sm text-slate-600">
+              Ajout des plats, categories et images pour {selectedRestaurant?.name || 'votre restaurant'}.
+            </p>
+          </div>
           <div className="flex flex-wrap gap-2">
             <Select value={selectedRestaurantId} onValueChange={setSelectedRestaurantId}>
               <SelectTrigger className="w-[260px] rounded-xl">
@@ -329,6 +407,13 @@ export default function RestaurateurMenuPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Link href="/restaurateur/reglages">
+              <Button variant="outline" className="rounded-full">
+                <ImagePlus className="mr-2 h-4 w-4" />
+                Image du restaurant
+              </Button>
+            </Link>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -351,11 +436,82 @@ export default function RestaurateurMenuPage() {
                       id="image"
                       type="file"
                       accept="image/png,image/jpeg,image/jpg,image/webp"
-                      onChange={(e) => onImageSelected(e.target.files?.[0])}
+                      multiple
+                      onChange={(e) => onImagesSelected(e.target.files)}
                     />
-                    {uploadingImage && <p className="text-xs text-slate-500">Upload image...</p>}
-                    {form.imageUrl && (
-                      <img src={form.imageUrl} alt="Apercu plat" className="mt-2 h-28 w-full rounded-lg object-cover" />
+                    {uploadingImage && <p className="text-xs text-slate-500">Upload images...</p>}
+                    <p className="text-xs text-slate-500">
+                      La premiere image sera la couverture du plat cote client.
+                    </p>
+                    {form.galleryImageUrls.length > 0 && (
+                      <div className="mt-3 space-y-3">
+                        <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                          <img
+                            src={resolveMediaUrl(form.galleryImageUrls[0])}
+                            alt="Couverture du plat"
+                            className="h-32 w-full object-cover"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          {form.galleryImageUrls.map((url, index) => (
+                            <div key={`${url}-${index}`} className="rounded-lg border border-slate-200 p-2">
+                              <div className="mb-2 h-20 overflow-hidden rounded-md bg-slate-100">
+                                <img src={resolveMediaUrl(url)} alt={`Image plat ${index + 1}`} className="h-full w-full object-cover" />
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-full"
+                                  onClick={() =>
+                                    setForm((prev) => {
+                                      const next = [...prev.galleryImageUrls]
+                                      const [selected] = next.splice(index, 1)
+                                      next.unshift(selected)
+                                      return { ...prev, galleryImageUrls: next }
+                                    })
+                                  }
+                                  disabled={index === 0}
+                                >
+                                  Couverture
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-full"
+                                  onClick={() =>
+                                    setForm((prev) => {
+                                      const next = [...prev.galleryImageUrls]
+                                      if (index === 0) return prev
+                                      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+                                      return { ...prev, galleryImageUrls: next }
+                                    })
+                                  }
+                                  disabled={index === 0}
+                                >
+                                  Monter
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-full"
+                                  onClick={() =>
+                                    setForm((prev) => {
+                                      const next = prev.galleryImageUrls.filter((_, imageIndex) => imageIndex !== index)
+                                      return { ...prev, galleryImageUrls: next }
+                                    })
+                                  }
+                                >
+                                  Supprimer
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                   <div className="space-y-1">
@@ -375,29 +531,41 @@ export default function RestaurateurMenuPage() {
                       <Label htmlFor="price">Prix</Label>
                       <Input
                         id="price"
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        inputMode="decimal"
+                        placeholder="Ex: 24,50"
                         value={form.price}
-                        onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
+                        onChange={(e) => setForm((prev) => ({ ...prev, price: normalizePriceInput(e.target.value) }))}
                       />
+                      <p className="text-xs text-slate-500">Vous pouvez saisir `24,50` ou `24.50`.</p>
                     </div>
                     <div className="space-y-1">
-                      <Label>Categorie</Label>
-                      <Select value={form.category} onValueChange={(value) => setForm((prev) => ({ ...prev, category: value }))}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories
-                            .filter((value) => value !== 'ALL')
-                            .map((value) => (
-                              <SelectItem key={value} value={value}>
-                                {value}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="category">Categorie</Label>
+                      <Input
+                        id="category"
+                        placeholder="Ex: Grillades"
+                        value={form.category}
+                        onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
+                      />
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {categories
+                          .filter((value) => value !== 'ALL')
+                          .slice(0, 8)
+                          .map((value) => (
+                            <Button
+                              key={value}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded-full"
+                              onClick={() => setForm((prev) => ({ ...prev, category: value }))}
+                            >
+                              {value}
+                            </Button>
+                          ))}
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Si la categorie n&apos;existe pas encore, elle sera creee automatiquement.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -481,6 +649,42 @@ export default function RestaurateurMenuPage() {
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
 
+      {selectedRestaurant && (
+        <Card className="border-slate-200/80 bg-white/90">
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-base">
+              <span>Galerie vitrine du restaurant</span>
+              <Link href="/restaurateur/reglages">
+                <Button variant="outline" size="sm" className="rounded-full">
+                  Gerer la galerie
+                </Button>
+              </Link>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Cette galerie est visible cote client sur la fiche publique du restaurant. Utilisez-la pour presenter la salle, la facade et vos meilleurs plats.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {restaurantGallery.slice(0, 4).map((image) => (
+                <div key={image.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                  <img
+                    src={resolveMediaUrl(image.imageUrl)}
+                    alt={image.altText || selectedRestaurant.name}
+                    className="h-32 w-full object-cover"
+                  />
+                </div>
+              ))}
+              {restaurantGallery.length === 0 && (
+                <div className="sm:col-span-2 lg:col-span-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                  Aucune image de galerie pour le moment. Ajoutez-en depuis Reglages pour enrichir l&apos;experience client.
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-slate-200/70 bg-white/90">
         <CardContent className="pt-5">
           <div className="grid gap-3 md:grid-cols-[220px_1fr]">
@@ -507,9 +711,9 @@ export default function RestaurateurMenuPage() {
       <section className="grid gap-3">
         {filteredItems.map((item) => (
           <Card key={item.id} className="border-slate-200/80 bg-white/90">
-            {item.imageUrl && (
+            {getMenuGalleryUrls(item)[0] && (
               <div className="h-40 w-full overflow-hidden rounded-t-xl">
-                <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                <img src={resolveMediaUrl(getMenuGalleryUrls(item)[0] || item.imageUrl)} alt={item.name} className="h-full w-full object-cover" />
               </div>
             )}
             <CardHeader className="pb-2">
@@ -525,6 +729,17 @@ export default function RestaurateurMenuPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-slate-700">{item.description || 'Sans description'}</p>
+              {getMenuGalleryUrls(item).length > 1 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {getMenuGalleryUrls(item)
+                    .slice(0, 4)
+                    .map((imageUrl, index) => (
+                      <div key={`${item.id}-gallery-${index}`} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                        <img src={resolveMediaUrl(imageUrl)} alt={`${item.name} ${index + 1}`} className="h-12 w-full object-cover" />
+                      </div>
+                    ))}
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" className="rounded-full" onClick={() => openEdit(item)}>
                   Modifier
@@ -548,6 +763,39 @@ export default function RestaurateurMenuPage() {
           </p>
         )}
       </section>
+
+      <Card className="border-slate-200/80 bg-white/90">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5 text-slate-700" />
+            Visuel du restaurant
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-20 w-20 overflow-hidden rounded-xl bg-slate-100">
+              {selectedRestaurant?.imageUrl ? (
+                <img
+                  src={resolveMediaUrl(selectedRestaurant.imageUrl)}
+                  alt={selectedRestaurant.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : null}
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900">{selectedRestaurant?.name || 'Restaurant'}</p>
+              <p className="text-sm text-slate-600">
+                Ajoutez ou modifiez la photo de couverture dans les reglages du restaurant.
+              </p>
+            </div>
+          </div>
+          <Link href="/restaurateur/reglages">
+            <Button variant="outline" className="rounded-full">
+              Gerer l&apos;image du restaurant
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   )
 }

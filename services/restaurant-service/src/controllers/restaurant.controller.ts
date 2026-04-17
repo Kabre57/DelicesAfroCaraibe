@@ -2,6 +2,38 @@ import { Request, Response } from 'express'
 import prisma from '../prisma'
 import { AuthenticatedRequest } from '../middlewares/auth.middleware'
 
+const ensureRestaurantAccess = async (req: AuthenticatedRequest, restaurantId: string) => {
+  if (!req.user) return { ok: false as const, code: 401, error: 'Unauthorized' }
+
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+    include: {
+      restaurateur: true,
+      galleryImages: {
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      },
+    },
+  })
+
+  if (!restaurant) {
+    return { ok: false as const, code: 404, error: 'Restaurant not found' }
+  }
+
+  if (req.user.role === 'ADMIN') {
+    return { ok: true as const, restaurant }
+  }
+
+  const restaurateur = await prisma.restaurateur.findUnique({
+    where: { id: restaurant.restaurateurId },
+  })
+
+  if (!restaurateur || restaurateur.userId !== req.user.userId) {
+    return { ok: false as const, code: 403, error: 'Forbidden' }
+  }
+
+  return { ok: true as const, restaurant }
+}
+
 export const getAllRestaurants = async (req: Request, res: Response) => {
   try {
     const { city, cuisineType, isActive } = req.query
@@ -14,6 +46,9 @@ export const getAllRestaurants = async (req: Request, res: Response) => {
     const restaurants = await prisma.restaurant.findMany({
       where,
       include: {
+        galleryImages: {
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        },
         menuItems: {
           where: { isAvailable: true },
           select: { price: true },
@@ -47,6 +82,9 @@ export const getRestaurantById = async (req: Request, res: Response) => {
     const restaurant = await prisma.restaurant.findUnique({
       where: { id },
       include: {
+        galleryImages: {
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        },
         menuItems: true,
         restaurateur: {
           include: {
@@ -129,17 +167,8 @@ export const updateRestaurant = async (req: AuthenticatedRequest, res: Response)
 
     // If not admin, ensure ownership
     if (req.user?.role !== 'ADMIN') {
-      const restaurant = await prisma.restaurant.findUnique({
-        where: { id },
-        include: { restaurateur: true },
-      })
-      if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' })
-      const restaurateur = await prisma.restaurateur.findUnique({
-        where: { id: restaurant.restaurateurId },
-      })
-      if (!restaurateur || restaurateur.userId !== req.user?.userId) {
-        return res.status(403).json({ error: 'Forbidden' })
-      }
+      const access = await ensureRestaurantAccess(req, id)
+      if (!access.ok) return res.status(access.code).json({ error: access.error })
     }
 
     const restaurant = await prisma.restaurant.update({
@@ -158,19 +187,8 @@ export const deleteRestaurant = async (req: AuthenticatedRequest, res: Response)
   try {
     const { id } = req.params
 
-    if (req.user?.role !== 'ADMIN') {
-      const restaurant = await prisma.restaurant.findUnique({
-        where: { id },
-        include: { restaurateur: true },
-      })
-      if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' })
-      const restaurateur = await prisma.restaurateur.findUnique({
-        where: { id: restaurant.restaurateurId },
-      })
-      if (!restaurateur || restaurateur.userId !== req.user?.userId) {
-        return res.status(403).json({ error: 'Forbidden' })
-      }
-    }
+    const access = await ensureRestaurantAccess(req, id)
+    if (!access.ok) return res.status(access.code).json({ error: access.error })
 
     await prisma.restaurant.delete({
       where: { id },
@@ -180,6 +198,141 @@ export const deleteRestaurant = async (req: AuthenticatedRequest, res: Response)
   } catch (error) {
     console.error('Delete restaurant error:', error)
     res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const getRestaurantGallery = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true,
+        galleryImages: {
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        },
+      },
+    })
+
+    if (!restaurant) {
+      return res.status(404).json({ error: 'Restaurant not found' })
+    }
+
+    return res.json(restaurant)
+  } catch (error) {
+    console.error('Get restaurant gallery error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const addRestaurantGalleryImage = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const access = await ensureRestaurantAccess(req, id)
+    if (!access.ok) return res.status(access.code).json({ error: access.error })
+
+    const imageUrl = String(req.body?.imageUrl || '').trim()
+    const altText = req.body?.altText ? String(req.body.altText).trim() : null
+
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Image URL is required' })
+    }
+
+    const currentMax = await prisma.restaurantGalleryImage.aggregate({
+      where: { restaurantId: id },
+      _max: { sortOrder: true },
+    })
+
+    const image = await prisma.restaurantGalleryImage.create({
+      data: {
+        restaurantId: id,
+        imageUrl,
+        altText,
+        sortOrder: (currentMax._max.sortOrder ?? -1) + 1,
+      },
+    })
+
+    return res.status(201).json(image)
+  } catch (error) {
+    console.error('Add restaurant gallery image error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const deleteRestaurantGalleryImage = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id, imageId } = req.params
+    const access = await ensureRestaurantAccess(req, id)
+    if (!access.ok) return res.status(access.code).json({ error: access.error })
+
+    const image = await prisma.restaurantGalleryImage.findFirst({
+      where: {
+        id: imageId,
+        restaurantId: id,
+      },
+    })
+
+    if (!image) {
+      return res.status(404).json({ error: 'Gallery image not found' })
+    }
+
+    await prisma.restaurantGalleryImage.delete({
+      where: { id: imageId },
+    })
+
+    return res.status(204).send()
+  } catch (error) {
+    console.error('Delete restaurant gallery image error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const reorderRestaurantGallery = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const access = await ensureRestaurantAccess(req, id)
+    if (!access.ok) return res.status(access.code).json({ error: access.error })
+
+    const imageIds = Array.isArray(req.body?.imageIds) ? req.body.imageIds.map((value: unknown) => String(value)) : []
+    const existingIds = access.restaurant.galleryImages.map((image) => image.id)
+
+    if (!imageIds.length) {
+      return res.status(400).json({ error: 'Image order is required' })
+    }
+
+    if (imageIds.length !== existingIds.length) {
+      return res.status(400).json({ error: 'Image order is incomplete' })
+    }
+
+    const sameIds =
+      imageIds.every((imageId: string) => existingIds.includes(imageId)) &&
+      existingIds.every((imageId: string) => imageIds.includes(imageId))
+
+    if (!sameIds) {
+      return res.status(400).json({ error: 'Image order contains invalid ids' })
+    }
+
+    await prisma.$transaction(
+      imageIds.map((imageId: string, index: number) =>
+        prisma.restaurantGalleryImage.update({
+          where: { id: imageId },
+          data: { sortOrder: index },
+        })
+      )
+    )
+
+    const galleryImages = await prisma.restaurantGalleryImage.findMany({
+      where: { restaurantId: id },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    })
+
+    return res.json({ galleryImages })
+  } catch (error) {
+    console.error('Reorder restaurant gallery error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
   }
 }
 

@@ -8,6 +8,10 @@ import {
   createRestaurant,
   updateRestaurant,
   deleteRestaurant,
+  getRestaurantGallery,
+  addRestaurantGalleryImage,
+  deleteRestaurantGalleryImage,
+  reorderRestaurantGallery,
 } from '../controllers/restaurant.controller'
 import {
   listCategories,
@@ -30,6 +34,7 @@ router.get('/discover/home', getDiscoveryHome)
 router.get('/discover/services', getDiscoveryServices)
 router.get('/categories', listCategories)
 router.get('/my/dashboard', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), getMyRestaurateurDashboard)
+router.get('/:id/gallery', getRestaurantGallery)
 router.get('/', getAllRestaurants)
 router.get('/:id', getRestaurantById)
 router.get('/:restaurantId/menu', (req, res, next) =>
@@ -38,7 +43,10 @@ router.get('/:restaurantId/menu', (req, res, next) =>
 router.get('/menu/item/:id', (req, res, next) => getMenuItemById(req, res).catch(next))
 
 router.post('/', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), createRestaurant)
+router.post('/:id/gallery', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), addRestaurantGalleryImage)
+router.put('/:id/gallery/reorder', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), reorderRestaurantGallery)
 router.post('/categories', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), createCategory)
+router.delete('/:id/gallery/:imageId', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), deleteRestaurantGalleryImage)
 router.put('/categories/:id', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), updateCategory)
 router.delete('/categories/:id', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), deleteCategory)
 router.put('/:id', authenticate, authorizeRoles('RESTAURATEUR', 'ADMIN'), updateRestaurant)

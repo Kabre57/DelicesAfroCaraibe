@@ -221,6 +221,8 @@ services:
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
       - UPLOAD_PUBLIC_BASE_URL=${UPLOAD_PUBLIC_BASE_URL:-http://localhost:3110}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+    volumes:
+      - ./.data/uploads:/app/uploads
     networks:
       - delices_network
 

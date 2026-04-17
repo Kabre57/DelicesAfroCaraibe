@@ -8,9 +8,18 @@ import { MenuItem, Restaurant } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useCartStore } from '@/lib/cart-store'
+import { resolveMediaUrl } from '@/lib/media'
 import { Separator } from '@/components/ui/separator'
 import { ShoppingCartButton } from '@/components/cart/ShoppingCartButton'
 import { getDeliverySocket, getOrderSocket } from '@/lib/socket'
+
+const getMenuGallery = (item: MenuItem) => {
+  const gallery = Array.isArray(item.galleryImages) ? item.galleryImages.map((image) => image.imageUrl).filter(Boolean) : []
+  if (item.imageUrl && !gallery.includes(item.imageUrl)) {
+    return [item.imageUrl, ...gallery]
+  }
+  return gallery
+}
 
 export default function RestaurantDetailPage() {
   const params = useParams()
@@ -21,13 +30,6 @@ export default function RestaurantDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { addItem, getItemCount } = useCartStore()
-
-  const resolveImage = (url?: string) => {
-    if (!url) return ''
-    if (url.startsWith('http://') || url.startsWith('https://')) return url
-    const normalized = url.startsWith('/') ? url : `/${url}`
-    return `http://localhost:3110${normalized}`
-  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -79,6 +81,29 @@ export default function RestaurantDetailPage() {
     return Array.from(new Set(menu.map((item) => item.category).filter(Boolean)))
   }, [menu])
 
+  const gallery = useMemo(() => {
+    if (!restaurant) return []
+    const images = restaurant.galleryImages || []
+    if (restaurant.imageUrl) {
+      const alreadyCovered = images.some((image) => image.imageUrl === restaurant.imageUrl)
+      if (!alreadyCovered) {
+        return [
+          {
+            id: 'cover-image',
+            restaurantId: restaurant.id,
+            imageUrl: restaurant.imageUrl,
+            altText: restaurant.name,
+            sortOrder: -1,
+            createdAt: restaurant.createdAt,
+            updatedAt: restaurant.updatedAt,
+          },
+          ...images,
+        ]
+      }
+    }
+    return images
+  }, [restaurant])
+
   const handleAdd = (item: MenuItem) => {
     addItem({
       menuItemId: item.id,
@@ -119,6 +144,34 @@ export default function RestaurantDetailPage() {
       </header>
 
       <main className="container mx-auto space-y-6 px-4 py-6">
+        {gallery.length > 0 && (
+          <section className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-sm">
+              <img
+                src={resolveMediaUrl(gallery[0].imageUrl)}
+                alt={gallery[0].altText || restaurant.name}
+                className="h-[320px] w-full object-cover"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {gallery.slice(1, 5).map((image) => (
+                <div key={image.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
+                  <img
+                    src={resolveMediaUrl(image.imageUrl)}
+                    alt={image.altText || restaurant.name}
+                    className="h-36 w-full object-cover"
+                  />
+                </div>
+              ))}
+              {gallery.length === 1 && (
+                <div className="col-span-2 flex min-h-[144px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
+                  Ajoutez d&apos;autres photos pour mettre en valeur ce restaurant.
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         <Card>
           <CardContent className="space-y-3 p-4">
             <p className="text-muted-foreground">{restaurant.description || 'Restaurant partenaire Delices Afro-Caraibe.'}</p>
@@ -142,6 +195,25 @@ export default function RestaurantDetailPage() {
                 ))}
               </div>
             )}
+            {gallery.length > 0 && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-slate-900">Galerie du restaurant</h2>
+                  <span className="text-xs text-slate-500">{gallery.length} image{gallery.length > 1 ? 's' : ''}</span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  {gallery.map((image) => (
+                    <div key={image.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                      <img
+                        src={resolveMediaUrl(image.imageUrl)}
+                        alt={image.altText || restaurant.name}
+                        className="h-24 w-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -155,9 +227,9 @@ export default function RestaurantDetailPage() {
             {menu.map((item) => (
               <Card key={item.id} className="flex flex-col">
                 <div className="h-40 w-full overflow-hidden bg-slate-100">
-                  {item.imageUrl ? (
+                  {getMenuGallery(item)[0] ? (
                     <img
-                      src={resolveImage(item.imageUrl)}
+                      src={resolveMediaUrl(getMenuGallery(item)[0])}
                       alt={item.name}
                       className="h-full w-full object-cover"
                     />
@@ -177,6 +249,21 @@ export default function RestaurantDetailPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="mt-auto space-y-2">
+                  {getMenuGallery(item).length > 1 && (
+                    <div className="grid grid-cols-4 gap-2">
+                      {getMenuGallery(item)
+                        .slice(0, 4)
+                        .map((imageUrl, index) => (
+                          <div key={`${item.id}-${index}`} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                            <img
+                              src={resolveMediaUrl(imageUrl)}
+                              alt={`${item.name} ${index + 1}`}
+                              className="h-14 w-full object-cover"
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  )}
                   <Button className="w-full" onClick={() => handleAdd(item)} disabled={!item.isAvailable}>
                     {item.isAvailable ? 'Ajouter au panier' : 'Indisponible'}
                   </Button>

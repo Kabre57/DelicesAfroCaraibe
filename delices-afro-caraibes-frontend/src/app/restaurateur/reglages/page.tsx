@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { RestaurantMediaManager } from '@/components/restaurant/restaurant-media-manager'
 import { restaurantAPI, uploadAPI, userAPI } from '@/lib/api'
 import { Restaurant } from '@/types'
 
@@ -239,21 +240,6 @@ export default function RestaurateurSettingsPage() {
     return res.data.url
   }
 
-  const onRestaurantImageSelected = async (file?: File) => {
-    if (!file) return
-    try {
-      setUploadingImage(true)
-      setError('')
-      const url = await uploadFile(file)
-      if (url) setForm((prev) => ({ ...prev, imageUrl: url }))
-    } catch (e) {
-      console.error(e)
-      setError("Upload de l'image restaurant impossible.")
-    } finally {
-      setUploadingImage(false)
-    }
-  }
-
   const onDocImageSelected = async (file?: File) => {
     if (!file) return
     try {
@@ -418,19 +404,6 @@ export default function RestaurateurSettingsPage() {
           <CardTitle>Informations generales</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1 sm:col-span-2">
-            <Label htmlFor="restaurant-image">Image du restaurant</Label>
-            <Input
-              id="restaurant-image"
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp"
-              onChange={(e) => onRestaurantImageSelected(e.target.files?.[0])}
-            />
-            {uploadingImage && <p className="text-xs text-slate-500">Upload image...</p>}
-            {form.imageUrl && (
-              <img src={form.imageUrl} alt="Apercu restaurant" className="mt-2 h-40 w-full rounded-xl object-cover" />
-            )}
-          </div>
           <div className="space-y-1">
             <Label htmlFor="name">Nom</Label>
             <Input id="name" value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} />
@@ -513,6 +486,28 @@ export default function RestaurateurSettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {selectedRestaurant && (
+        <Card className="border-slate-200/80 bg-white/90">
+          <CardHeader>
+            <CardTitle>Medias du restaurant</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RestaurantMediaManager
+              restaurant={selectedRestaurant}
+              onRestaurantChange={(updatedRestaurant) => {
+                setRestaurants((prev) =>
+                  prev.map((restaurant) => (restaurant.id === updatedRestaurant.id ? updatedRestaurant : restaurant))
+                )
+                setForm((prev) => ({
+                  ...prev,
+                  imageUrl: updatedRestaurant.imageUrl || '',
+                }))
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

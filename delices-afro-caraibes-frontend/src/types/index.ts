@@ -64,6 +64,17 @@ export interface Restaurant {
   isActive: boolean
   isOpen?: boolean
   rating?: number
+  galleryImages?: RestaurantGalleryImage[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RestaurantGalleryImage {
+  id: string
+  restaurantId: string
+  imageUrl: string
+  altText?: string | null
+  sortOrder: number
   createdAt: string
   updatedAt: string
 }
@@ -76,8 +87,19 @@ export interface MenuItem {
   price: number
   category: string
   imageUrl?: string
+  galleryImages?: MenuItemImage[]
   isAvailable: boolean
   available?: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MenuItemImage {
+  id: string
+  menuItemId: string
+  imageUrl: string
+  altText?: string | null
+  sortOrder: number
   createdAt: string
   updatedAt: string
 }

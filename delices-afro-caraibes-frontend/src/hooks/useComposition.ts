@@ -28,9 +28,6 @@ export function useComposition<T extends HTMLElement>(handlers: Handlers<T>) {
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<T>) => {
-      // Ensure downstream consumers see the composing flag
-      (e.nativeEvent as any).isComposing =
-        (e.nativeEvent as any).isComposing || composingRef.current;
       handlers.onKeyDown?.(e);
     },
     [handlers.onKeyDown]

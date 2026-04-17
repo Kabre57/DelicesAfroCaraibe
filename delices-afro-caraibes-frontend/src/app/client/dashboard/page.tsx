@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { notificationAPI, orderAPI, restaurantAPI, userAPI } from '@/lib/api'
 import { ShoppingCartButton } from '@/components/cart/ShoppingCartButton'
+import { resolveMediaUrl } from '@/lib/media'
 import { getDeliverySocket, getOrderSocket } from '@/lib/socket'
 
 type ClientSummaryResponse = {
@@ -105,13 +106,6 @@ const initialsFrom = (text: string) =>
     .slice(0, 2)
     .map((x) => x[0]?.toUpperCase() || '')
     .join('')
-
-const resolveImage = (url?: string | null) => {
-  if (!url) return ''
-  if (url.startsWith('http://') || url.startsWith('https://')) return url
-  const normalized = url.startsWith('/') ? url : `/${url}`
-  return `http://localhost:3110${normalized}`
-}
 
 export default function ClientDashboard() {
   const router = useRouter()
@@ -327,7 +321,7 @@ export default function ClientDashboard() {
               <div className="h-24 w-24 overflow-hidden rounded-full border border-fuchsia-100 bg-fuchsia-50 sm:h-28 sm:w-28">
                 {partner.imageUrl ? (
                   <img
-                    src={resolveImage(partner.imageUrl)}
+                    src={resolveMediaUrl(partner.imageUrl)}
                     alt={partner.name}
                     className="h-full w-full object-cover"
                   />
@@ -357,7 +351,7 @@ export default function ClientDashboard() {
               <div className="mb-2 h-20 w-full overflow-hidden rounded-xl bg-slate-100">
                 {category.imageUrl ? (
                   <img
-                    src={resolveImage(category.imageUrl)}
+                    src={resolveMediaUrl(category.imageUrl)}
                     alt={category.name}
                     className="h-full w-full object-cover"
                   />
@@ -386,7 +380,7 @@ export default function ClientDashboard() {
               <div className="h-32 w-full overflow-hidden bg-slate-100">
                 {dish.imageUrl ? (
                   <img
-                    src={resolveImage(dish.imageUrl)}
+                    src={resolveMediaUrl(dish.imageUrl)}
                     alt={dish.name}
                     className="h-full w-full object-cover"
                   />

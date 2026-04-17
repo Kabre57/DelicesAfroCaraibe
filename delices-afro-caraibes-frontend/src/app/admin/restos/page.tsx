@@ -1,27 +1,44 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Search, XCircle } from 'lucide-react'
+import { CheckCircle2, ImagePlus, Search, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { RestaurantMediaManager } from '@/components/restaurant/restaurant-media-manager'
 import { fetchAdminBundle, AdminOverview, PendingResto } from '@/lib/admin'
-import { userAPI } from '@/lib/api'
+import { restaurantAPI, userAPI } from '@/lib/api'
+import { resolveMediaUrl } from '@/lib/media'
+import { Restaurant } from '@/types'
 
 export default function AdminRestosPage() {
   const [overview, setOverview] = useState<AdminOverview | null>(null)
   const [pendingRestos, setPendingRestos] = useState<PendingResto[]>([])
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
 
   const load = async () => {
     try {
       setError('')
-      const data = await fetchAdminBundle()
+      const [data, restaurantsRes] = await Promise.all([
+        fetchAdminBundle(),
+        restaurantAPI.get<Restaurant[]>('/restaurants'),
+      ])
       setOverview(data.overview)
       setPendingRestos(data.pendingRestos)
+      setRestaurants(Array.isArray(restaurantsRes.data) ? restaurantsRes.data : [])
     } catch (e) {
       console.error(e)
       setError('Impossible de charger les restaurants.')
@@ -56,6 +73,30 @@ export default function AdminRestosPage() {
       )
     })
   }, [pendingRestos, search])
+
+  const filteredRestaurants = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return restaurants
+    return restaurants.filter((restaurant) => {
+      return (
+        restaurant.name.toLowerCase().includes(q) ||
+        restaurant.city.toLowerCase().includes(q) ||
+        restaurant.cuisineType.toLowerCase().includes(q)
+      )
+    })
+  }, [restaurants, search])
+
+  const openRestaurant = async (restaurantId: string) => {
+    try {
+      setError('')
+      const res = await restaurantAPI.get<Restaurant>(`/restaurants/${restaurantId}`)
+      setSelectedRestaurant(res.data)
+      setDetailOpen(true)
+    } catch (e) {
+      console.error(e)
+      setError('Impossible de charger le detail du restaurant.')
+    }
+  }
 
   if (loading) return <div className="p-6">Chargement...</div>
 
@@ -128,7 +169,84 @@ export default function AdminRestosPage() {
           ))}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Catalogue restaurants</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {filteredRestaurants.map((restaurant) => (
+            <div key={restaurant.id} className="rounded-xl border border-slate-200 p-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-20 w-20 overflow-hidden rounded-xl bg-slate-100">
+                    {restaurant.imageUrl ? (
+                      <img
+                        src={resolveMediaUrl(restaurant.imageUrl)}
+                        alt={restaurant.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : null}
+                  </div>
+                  <div>
+                    <p className="font-semibold">{restaurant.name}</p>
+                    <p className="text-sm text-slate-500">
+                      {restaurant.city} - {restaurant.cuisineType}
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <Badge variant={restaurant.isActive ? 'default' : 'outline'}>
+                        {restaurant.isActive ? 'Actif' : 'Inactif'}
+                      </Badge>
+                      <Badge variant="outline">
+                        Galerie: {restaurant.galleryImages?.length || 0}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" className="rounded-full" onClick={() => openRestaurant(restaurant.id)}>
+                  <ImagePlus className="mr-2 h-4 w-4" />
+                  Editer medias
+                </Button>
+              </div>
+            </div>
+          ))}
+          {filteredRestaurants.length === 0 && (
+            <p className="text-sm text-slate-600">Aucun restaurant ne correspond a la recherche.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Gestion des medias restaurant</DialogTitle>
+            <DialogDescription>
+              Modifiez l&apos;image principale et la galerie du restaurant selectionne.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRestaurant ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-slate-200 p-3 text-sm">
+                <p className="font-semibold text-slate-900">{selectedRestaurant.name}</p>
+                <p className="text-slate-500">
+                  {selectedRestaurant.city} - {selectedRestaurant.cuisineType}
+                </p>
+              </div>
+              <RestaurantMediaManager
+                restaurant={selectedRestaurant}
+                onRestaurantChange={(updatedRestaurant) => {
+                  setSelectedRestaurant(updatedRestaurant)
+                  setRestaurants((prev) =>
+                    prev.map((restaurant) => (restaurant.id === updatedRestaurant.id ? updatedRestaurant : restaurant))
+                  )
+                }}
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-slate-600">Chargement...</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-

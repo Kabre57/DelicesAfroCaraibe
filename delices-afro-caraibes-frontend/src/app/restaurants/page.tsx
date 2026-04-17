@@ -21,6 +21,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { restaurantAPI } from '@/lib/api'
+import { resolveMediaUrl } from '@/lib/media'
 import { Restaurant } from '@/types'
 import { ShoppingCartButton } from '@/components/cart/ShoppingCartButton'
 
@@ -56,13 +57,6 @@ export default function RestaurantsSearchPage() {
   const cuisineTypeOptions = Array.from(new Set(restaurants.map((r) => r.cuisineType))).sort((a, b) =>
     a.localeCompare(b)
   )
-
-  const resolveImage = (url?: string) => {
-    if (!url) return ''
-    if (url.startsWith('http://') || url.startsWith('https://')) return url
-    const normalized = url.startsWith('/') ? url : `/${url}`
-    return `http://localhost:3110${normalized}`
-  }
 
   useEffect(() => {
     const fetchRestaurants = async () => {
@@ -317,7 +311,7 @@ export default function RestaurantsSearchPage() {
                 <div className="relative h-48 bg-gray-200 overflow-hidden">
                   {restaurant.imageUrl && !brokenImageIds.has(restaurant.id) ? (
                     <img
-                      src={resolveImage(restaurant.imageUrl)}
+                      src={resolveMediaUrl(restaurant.imageUrl)}
                       alt={restaurant.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       onError={() =>
